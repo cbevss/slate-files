@@ -2,6 +2,7 @@ mod default_app;
 mod fsops;
 mod index;
 mod transfer;
+mod update;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -149,6 +150,22 @@ fn cancel_transfer(state: State<'_, App>, id: u64) {
     state.transfers.cancel(id);
 }
 
+#[tauri::command]
+fn auto_update_enabled() -> bool {
+    update::auto_update_enabled()
+}
+
+#[tauri::command]
+fn set_auto_update(on: bool) -> Result<(), String> {
+    update::set_auto_update(on)
+}
+
+/// Called by the UI once it is listening for "update-status" events.
+#[tauri::command]
+fn check_updates(app: tauri::AppHandle, quiet: bool) {
+    tauri::async_runtime::spawn(update::run(app, quiet));
+}
+
 pub fn run() {
     let index = Arc::new(index::Index::default());
     let bg = index.clone();
@@ -169,6 +186,7 @@ pub fn run() {
             }
             let _ = app.emit("open-path", path);
         }))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(App { index, transfers: Arc::new(transfer::Transfers::default()) })
         .setup(|app| {
             if let Some(w) = app.get_webview_window("main") {
@@ -179,7 +197,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_dir, drives, places, platform, free_space, rename, mkdir, trash, restore, delete_permanent,
             open_path, dir_size, sha256, duplicates, search, index_status, reindex, start_transfer,
-            pause_transfer, cancel_transfer, startup_path, default_status, set_default
+            pause_transfer, cancel_transfer, startup_path, default_status, set_default,
+            auto_update_enabled, set_auto_update, check_updates
         ])
         .run(tauri::generate_context!())
         .expect("error while running Slate");

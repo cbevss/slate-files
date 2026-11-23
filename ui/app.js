@@ -811,6 +811,8 @@
     ["New folder", () => act("newfolder"), "newfolder", "Ctrl+Shift+N"], ["Undo", () => undo(), "back", "Ctrl+Z"],
     ["Show or hide hidden files", () => toggleHidden(), "info", "Ctrl+H"], ["Calculate folder sizes", () => act("sizes"), "drive", ""],
     ["Find duplicate files in this folder", () => act("dupes"), "copy", ""], ["Rebuild the search index", () => { FSX.reindex(); toast("Rebuilding the search index in the background"); }, "search", ""],
+    ["Check for updates", () => FSX.checkUpdates(false), "download", ""],
+    ["Turn automatic updates on or off", () => toggleAutoUpdate(), "download", ""],
     ["Make Slate the default file explorer", () => setDefault(true), "star", ""],
     [`Restore ${WIN ? "Windows Explorer" : "the previous file manager"} as default`, () => setDefault(false), "back", ""],
     ["Go to This PC", () => go(S.pane, ""), "pc", ""],
@@ -869,6 +871,28 @@
     if (e.key === "ArrowDown") { e.preventDefault(); palSel = Math.min(palItems.length - 1, palSel + 1); drawPalSel(); }
     else if (e.key === "ArrowUp") { e.preventDefault(); palSel = Math.max(0, palSel - 1); drawPalSel(); }
     else if (e.key === "Enter") { e.preventDefault(); runPal(); }
+  });
+  async function toggleAutoUpdate() {
+    const on = !(await FSX.autoUpdate());
+    try { await FSX.setAutoUpdate(on); toast(on ? "Automatic updates are on. Slate updates itself when it starts." : "Automatic updates are off. Use Ctrl+K → Check for updates."); }
+    catch (e) { toast(err(e)); }
+  }
+  // one live toast for the update flow
+  let upToast = null;
+  function updateToast(msg, action, onAction) {
+    if (!upToast || !upToast.isConnected) { upToast = el("div", "toast"); $("#toasts").appendChild(upToast); }
+    upToast.innerHTML = `<span class="num">${esc(msg)}</span>${action ? `<button class="btn">${esc(action)}</button>` : ""}`;
+    if (action) upToast.querySelector("button").onclick = onAction;
+  }
+  function endUpdateToast(ms) { const t = upToast; upToast = null; if (t) setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 220); }, ms); }
+  FSX.onUpdate((s) => {
+    const v = s.version ? `v${s.version}` : "";
+    if (s.state === "checking") updateToast("Checking for updates…");
+    else if (s.state === "current") { updateToast(`Slate is up to date (${v})`); endUpdateToast(3000); }
+    else if (s.state === "downloading") updateToast(`Updating Slate to ${v}… ${s.progress != null ? Math.round(s.progress * 100) + "%" : ""}. It restarts when done.`);
+    else if (s.state === "installing") updateToast(`Installing Slate ${v}. Approve the admin prompt to finish.`);
+    else if (s.state === "available") { updateToast(`Slate ${v} is available`, "Download", () => { FSX.open(s.message); endUpdateToast(0); }); endUpdateToast(12000); }
+    else if (s.state === "error") { updateToast(s.message || "The update didn't work."); endUpdateToast(7000); }
   });
   function setDefault(enable) {
     const what = WIN ? "Windows Explorer" : "your previous file manager";
@@ -1060,4 +1084,6 @@
   if (S.layout !== "dual") renderPane(1);
   renderChrome();
   focusList(0);
+  // update on launch (quietly: only says something if there is an update)
+  if (await FSX.autoUpdate().catch(() => false)) FSX.checkUpdates(true);
 })();

@@ -1,6 +1,6 @@
 [package]
 name = "slate"
-version = "0.1.1"
+version = "0.1.2"
 description = "Slate: a fast, clean file explorer for Windows and Linux"
 authors = ["Slate contributors"]
 license = "MIT"
@@ -26,6 +26,7 @@ trash = "5"
 open = "5"
 sha2 = "0.10"
 tauri-plugin-single-instance = "2"
+tauri-plugin-updater = "2"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"

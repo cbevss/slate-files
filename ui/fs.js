@@ -44,6 +44,10 @@
       defaultStatus: () => invoke("default_status"),
       setDefault: (enable) => invoke("set_default", { enable }),
       onOpenPath: (cb) => T.event.listen("open-path", (ev) => cb(ev.payload)),
+      autoUpdate: () => invoke("auto_update_enabled"),
+      setAutoUpdate: (on) => invoke("set_auto_update", { on }),
+      checkUpdates: (quiet) => invoke("check_updates", { quiet }),
+      onUpdate: (cb) => T.event.listen("update-status", (ev) => cb(ev.payload)),
       async transfer(mode, sources, dest, onProgress) {
         let resolve;
         const done = new Promise((r) => (resolve = r));
@@ -122,6 +126,10 @@
     async defaultStatus() { return false; },
     async setDefault() { throw new Error("Install the Slate app to make it your default file explorer."); },
     onOpenPath() {},
+    async autoUpdate() { return false; },
+    async setAutoUpdate() {},
+    async checkUpdates() {},
+    onUpdate() {},
     async transfer(mode, sources, dest, onProgress) {
       const items = sources.map((p) => ({ p, e: (F.list(p.slice(0, p.lastIndexOf("\\"))) || []).find((x) => x.path === p) })).filter((x) => x.e);
       const total = items.reduce((a, x) => a + (x.e.dir ? F.size(x.p) : x.e.size), 0);
