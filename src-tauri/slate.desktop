@@ -1,0 +1,12 @@
+[Desktop Entry]
+Categories={{categories}}
+Comment={{comment}}
+Exec={{exec}} %F
+StartupWMClass={{exec}}
+Icon={{icon}}
+Name={{name}}
+GenericName=File Manager
+Terminal=false
+Type=Application
+MimeType=inode/directory;
+Keywords=files;folders;explorer;file manager;

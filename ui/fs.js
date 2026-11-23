@@ -40,6 +40,10 @@
       indexStatus: () => invoke("index_status"),
       reindex: () => invoke("reindex"),
       simulated: false,
+      startupPath: () => invoke("startup_path"),
+      defaultStatus: () => invoke("default_status"),
+      setDefault: (enable) => invoke("set_default", { enable }),
+      onOpenPath: (cb) => T.event.listen("open-path", (ev) => cb(ev.payload)),
       async transfer(mode, sources, dest, onProgress) {
         let resolve;
         const done = new Promise((r) => (resolve = r));
@@ -114,6 +118,10 @@
     },
     async indexStatus() { let count = 0; F.walk(() => count++); return { building: false, count, build_ms: 1 }; },
     async reindex() {},
+    async startupPath() { return null; },
+    async defaultStatus() { return false; },
+    async setDefault() { throw new Error("Install the Slate app to make it your default file explorer."); },
+    onOpenPath() {},
     async transfer(mode, sources, dest, onProgress) {
       const items = sources.map((p) => ({ p, e: (F.list(p.slice(0, p.lastIndexOf("\\"))) || []).find((x) => x.path === p) })).filter((x) => x.e);
       const total = items.reduce((a, x) => a + (x.e.dir ? F.size(x.p) : x.e.size), 0);

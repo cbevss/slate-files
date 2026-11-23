@@ -811,6 +811,8 @@
     ["New folder", () => act("newfolder"), "newfolder", "Ctrl+Shift+N"], ["Undo", () => undo(), "back", "Ctrl+Z"],
     ["Show or hide hidden files", () => toggleHidden(), "info", "Ctrl+H"], ["Calculate folder sizes", () => act("sizes"), "drive", ""],
     ["Find duplicate files in this folder", () => act("dupes"), "copy", ""], ["Rebuild the search index", () => { FSX.reindex(); toast("Rebuilding the search index in the background"); }, "search", ""],
+    ["Make Slate the default file explorer", () => setDefault(true), "star", ""],
+    [`Restore ${WIN ? "Windows Explorer" : "the previous file manager"} as default`, () => setDefault(false), "back", ""],
     ["Go to This PC", () => go(S.pane, ""), "pc", ""],
     ...FSX.places().map((pl) => [`Go to ${pl.label}`, () => go(S.pane, pl.path), pl.icon, ""]),
   ];
@@ -868,6 +870,19 @@
     else if (e.key === "ArrowUp") { e.preventDefault(); palSel = Math.max(0, palSel - 1); drawPalSel(); }
     else if (e.key === "Enter") { e.preventDefault(); runPal(); }
   });
+  function setDefault(enable) {
+    const what = WIN ? "Windows Explorer" : "your previous file manager";
+    if (!enable) return FSX.setDefault(false).then(() => toast(`${what[0].toUpperCase() + what.slice(1)} is the default again`), (e) => toast(err(e)));
+    modal({
+      title: "Make Slate your default file explorer?",
+      sub: WIN
+        ? "Double-clicking folders and drives, and pressing Win+E, will open Slate. This only changes settings for your user account."
+        : "Folders opened from your desktop and other apps will open in Slate instead of Dolphin.",
+      body: `<p class="fine">You can switch back any time: press Ctrl+K and choose “Restore ${WIN ? "Windows Explorer" : "the previous file manager"} as default”.</p>`,
+      ok: "Make default",
+      onOk: () => FSX.setDefault(true).then(() => toast("Slate is now your default file explorer"), (e) => toast(err(e))),
+    });
+  }
   function toggleHidden() {
     showHidden = !showHidden; store.set("hidden", showHidden);
     visiblePanes().forEach((i) => renderPane(i)); renderChrome();
@@ -1031,6 +1046,10 @@
   setInterval(() => { if (!document.hidden) FSX.refreshDrives().then(() => renderSide()); }, 30000);
 
   /* ---------- start ---------- */
+  // opened on a folder (Explorer's "Open in Slate", a file manager handler, Win+E)
+  const startAt = await FSX.startupPath().catch(() => null);
+  if (startAt) { S.tabs.push(newTab(startAt, HOME)); S.tab = S.tabs.length - 1; }
+  FSX.onOpenPath((path) => addTab(path || HOME));
   applyLayout();
   await Promise.all([0, 1].map((i) => load(pane(i).path).catch(() => { pane(i).path = HOME; return load(HOME); })));
   if (!FSX.real) {

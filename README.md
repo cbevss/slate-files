@@ -43,6 +43,15 @@ On Linux, Slate uses the system WebKitGTK 4.1, which `dnf` pulls in automaticall
 - Folder sizes, and a duplicate finder that compares file contents with SHA-256.
 - SHA-256 checksums for downloads such as ISOs and installers.
 
+## Make Slate your default file explorer
+
+Press **Ctrl+K** and choose **Make Slate the default file explorer**.
+
+- **Windows:** double-clicking folders and drives, and pressing **Win+E**, now opens Slate. Folders open as a new tab in the window that's already running. Only per-user registry keys under `HKCU\Software\Classes` change, and Explorer itself is untouched.
+- **Fedora KDE / Linux:** Slate becomes the handler for folders (`inode/directory`), the same setting as KDE's *Default Applications → File Manager*.
+
+To switch back, press Ctrl+K and choose **Restore Windows Explorer as default** (on Linux, *Restore the previous file manager as default*).
+
 ## Keyboard
 
 | Keys | Action |

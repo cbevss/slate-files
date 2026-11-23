@@ -1,10 +1,41 @@
+mod default_app;
 mod fsops;
 mod index;
 mod transfer;
 
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
+
+/// The folder a launch asked for, e.g. `slate.exe "D:\Photos"` from Explorer's
+/// "Open in Slate" or a file manager handler. A file opens its folder.
+fn path_from_args<I: IntoIterator<Item = String>>(args: I) -> Option<String> {
+    let arg = args.into_iter().skip(1).find(|a| !a.starts_with('-') && !a.is_empty())?;
+    let p = PathBuf::from(arg.trim_matches('"'));
+    let p = if p.is_file() { p.parent()?.to_path_buf() } else { p };
+    if !p.is_dir() {
+        return None;
+    }
+    let s = p.to_string_lossy().to_string();
+    let trimmed = if s.len() > 3 { s.trim_end_matches(['\\', '/']).to_string() } else { s };
+    Some(fsops::ui_path(&PathBuf::from(trimmed)))
+}
+
+#[tauri::command]
+fn startup_path() -> Option<String> {
+    path_from_args(std::env::args())
+}
+
+#[tauri::command]
+fn default_status() -> bool {
+    default_app::is_default()
+}
+
+#[tauri::command]
+async fn set_default(enable: bool) -> Result<(), String> {
+    blocking(move || default_app::set(enable)).await?
+}
 
 struct App {
     index: Arc<index::Index>,
@@ -128,6 +159,16 @@ pub fn run() {
     });
 
     tauri::Builder::default()
+        // A second launch (double-clicking a folder, Win+E) opens a tab in the
+        // window that's already running instead of starting another copy.
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            let path = path_from_args(argv);
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+            let _ = app.emit("open-path", path);
+        }))
         .manage(App { index, transfers: Arc::new(transfer::Transfers::default()) })
         .setup(|app| {
             if let Some(w) = app.get_webview_window("main") {
@@ -138,7 +179,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_dir, drives, places, platform, free_space, rename, mkdir, trash, restore, delete_permanent,
             open_path, dir_size, sha256, duplicates, search, index_status, reindex, start_transfer,
-            pause_transfer, cancel_transfer
+            pause_transfer, cancel_transfer, startup_path, default_status, set_default
         ])
         .run(tauri::generate_context!())
         .expect("error while running Slate");
