@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Slate",
+  "version": "0.1.0",
+  "identifier": "app.slate.files",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Slate",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 960,
+        "minHeight": 600,
+        "decorations": false,
+        "backgroundColor": "#000000",
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi", "deb", "rpm", "appimage"],
+    "category": "Utility",
+    "shortDescription": "A fast, clean file explorer",
+    "longDescription": "Slate is a lightweight file explorer for Windows and Linux with instant search, a parallel copy engine, tabs, dual panes and a black, white and grey interface.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": { "installMode": "currentUser" }
+    },
+    "linux": {
+      "rpm": { "depends": ["webkit2gtk4.1", "gtk3"] },
+      "deb": { "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"] }
+    }
+  }
+}

@@ -1,0 +1,482 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-23T14:31:29.866560+00:00",
+  "title": "Design System: File Explorer",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "True Black",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel Black",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Raised Black",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Hover Black",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "select": {
+        "role": "neutral",
+        "displayName": "Selection Grey",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline Grey",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "ring": {
+        "role": "neutral",
+        "displayName": "Ring Grey",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "border-strong": {
+        "role": "neutral",
+        "displayName": "Strong Border Grey",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "focus": {
+        "role": "neutral",
+        "displayName": "Focus Grey",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "text": {
+        "role": "primary",
+        "displayName": "Paper White",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "text-strong-quiet": {
+        "role": "neutral",
+        "displayName": "Soft White",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "text-2": {
+        "role": "neutral",
+        "displayName": "Secondary Grey",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "text-3": {
+        "role": "neutral",
+        "displayName": "Tertiary Grey",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "Pressed White",
+        "tonalRamp": [
+          "#0a0a0a",
+          "#1f1f1f",
+          "#333333",
+          "#4d4d4d",
+          "#808080",
+          "#a3a3a3",
+          "#d6d6d6",
+          "#f2f2f2"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "Dialog headings."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Previewed file name, empty-state heading, palette input."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Rows, tabs, buttons, metadata, status; tabular numerals."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Palette footer hints and small notes."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Sidebar and palette group labels, tertiary grey, sentence case."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay-deep",
+        "value": "0 24px 64px rgba(0,0,0,.7)",
+        "purpose": "Command palette and dialog."
+      },
+      {
+        "name": "overlay-near",
+        "value": "0 16px 48px rgba(0,0,0,.7)",
+        "purpose": "Context menu."
+      },
+      {
+        "name": "toast",
+        "value": "0 16px 40px rgba(0,0,0,.6)",
+        "purpose": "Toasts."
+      },
+      {
+        "name": "scrim",
+        "value": "rgba(0,0,0,.55)",
+        "purpose": "Dimming layer behind palette and dialog."
+      },
+      {
+        "name": "selection-ring",
+        "value": "inset 0 0 0 1px #3d3d3d",
+        "purpose": "Selected row ring."
+      },
+      {
+        "name": "cursor-ring",
+        "value": "inset 0 0 0 1px #8f8f8f",
+        "purpose": "Keyboard cursor ring on rows."
+      },
+      {
+        "name": "focus-outline",
+        "value": "outline: 2px solid #8f8f8f; outline-offset: 2px",
+        "purpose": "Global focus-visible outline."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(.22, 1, .36, 1)",
+        "purpose": "The one easing: soft decelerating spring, no overshoot."
+      },
+      {
+        "name": "t",
+        "value": "280ms",
+        "purpose": "Standard state transition (tab background, segmented thumb, transfer reveal)."
+      },
+      {
+        "name": "layout-glide",
+        "value": "300ms ease; Web Animations API FLIP on transform + clip-path inset(... round 12px); entering panels fade in from translateX(24px); departing panels are cloned as a fixed .ghost at their old rect and animate opacity 1 to 0 and translateX 0 to 24px over 240ms on the same easing (fill forwards), removed by a 450ms backstop",
+        "purpose": "Signature layout switch; panel content snaps to its final layout. Glide and ghost exit are both skipped under reduced motion."
+      },
+      {
+        "name": "overlay-pop",
+        "value": "220ms (menu 160ms), from opacity 0, translateY(-8px) scale(.98)",
+        "purpose": "Palette, dialog and menu entrance."
+      },
+      {
+        "name": "scrim-fade",
+        "value": "180ms",
+        "purpose": "Scrim entrance."
+      },
+      {
+        "name": "enter",
+        "value": "260ms, from opacity 0 and translateY 4-10px",
+        "purpose": "New tab, new row, toast in."
+      },
+      {
+        "name": "toast-out",
+        "value": "200ms, to opacity 0 and translateY(6px)",
+        "purpose": "Toast exit."
+      },
+      {
+        "name": "micro",
+        "value": "120-160ms",
+        "purpose": "Hover fills, colour and border changes, button press scale(.98)."
+      },
+      {
+        "name": "splitter",
+        "value": "200ms ease (height), 160ms (colour)",
+        "purpose": "Splitter grip grows from 36px to 64px on hover or drag."
+      },
+      {
+        "name": "usage-fill",
+        "value": "600ms ease",
+        "purpose": "Drive usage track fill."
+      },
+      {
+        "name": "transfer-fill",
+        "value": "200ms linear",
+        "purpose": "Transfer progress fill."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "all animation and transition durations 1ms; FLIP skipped",
+        "purpose": "Honour prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "min-window",
+        "value": "960px"
+      },
+      {
+        "name": "search-narrow",
+        "value": "max-width: 1180px"
+      },
+      {
+        "name": "panel-caps",
+        "value": "max-width: 1100px",
+        "effect": "--side-max 212px, --prev-max 280px; preview actions become an equal 3-column grid (gap 6px, padding 14px 12px), buttons padded 0 6px, centred, nowrap"
+      },
+      {
+        "name": "search-collapse",
+        "value": "max-width: 1000px"
+      },
+      {
+        "name": "short-window",
+        "value": "max-height: 720px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single filled-white action per layer (Open, Copy to..., dialog confirm).",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Open</button>",
+      "css": ".ds-btn{font:13px/1.45 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;height:32px;padding:0 14px;border-radius:8px;border:1px solid #2e2e2e;background:none;color:#fff;display:inline-flex;align-items:center;gap:8px;transition:background 140ms,border-color 140ms,transform 120ms}.ds-btn:active{transform:scale(.98)}.ds-btn:focus-visible{outline:2px solid #8f8f8f;outline-offset:2px}.ds-btn-primary{background:#fff;border-color:#fff;color:#000;font-weight:600}.ds-btn-primary:hover{background:#e6e6e6}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Outlined action beside the primary (Move to..., Cancel).",
+      "html": "<button class=\"ds-btn-sec\">Move to…</button>",
+      "css": ".ds-btn-sec{font:13px/1.45 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;height:32px;padding:0 14px;border-radius:8px;border:1px solid #2e2e2e;background:none;color:#fff;transition:background 140ms,border-color 140ms,transform 120ms}.ds-btn-sec:hover{background:#1f1f1f;border-color:#3d3d3d}.ds-btn-sec:active{transform:scale(.98)}.ds-btn-sec:focus-visible{outline:2px solid #8f8f8f;outline-offset:2px}"
+    },
+    {
+      "name": "Tabs",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "Folder tabs on the black tab row; the selected tab is raised and bordered.",
+      "html": "<div class=\"ds-tabs\"><button class=\"ds-tab\" aria-selected=\"true\">Documents</button><button class=\"ds-tab\">Downloads</button></div>",
+      "css": ".ds-tabs{display:flex;gap:4px;background:#000;padding:6px}.ds-tab{font:13px/1.45 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;height:34px;min-width:96px;padding:0 12px;border-radius:10px;border:1px solid transparent;background:none;color:#a3a3a3;text-align:left;transition:background 280ms cubic-bezier(.22,1,.36,1),color 160ms,border-color 160ms}.ds-tab:hover{background:#141414;color:#d6d6d6}.ds-tab[aria-selected=true]{background:#161616;border-color:#2e2e2e;color:#fff}.ds-tab:focus-visible{outline:2px solid #8f8f8f;outline-offset:2px}"
+    },
+    {
+      "name": "Segmented Layout Switcher",
+      "kind": "custom",
+      "refersTo": "segmented-control",
+      "description": "Single / dual / preview switch with a sliding thumb.",
+      "html": "<div class=\"ds-seg\"><span class=\"ds-seg-thumb\"></span><button aria-pressed=\"true\">1</button><button>2</button><button>3</button></div>",
+      "css": ".ds-seg{position:relative;display:inline-flex;gap:2px;padding:3px;border-radius:10px;background:#000;border:1px solid #2e2e2e}.ds-seg button{font:13px/1.45 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;position:relative;z-index:1;width:34px;height:28px;border:0;border-radius:7px;background:none;color:#a3a3a3;transition:color 160ms}.ds-seg button:hover,.ds-seg button[aria-pressed=true]{color:#fff}.ds-seg button:focus-visible{outline:2px solid #8f8f8f;outline-offset:2px}.ds-seg-thumb{position:absolute;top:3px;left:3px;width:34px;height:28px;border-radius:7px;background:#2a2a2a;transition:transform 280ms cubic-bezier(.22,1,.36,1)}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Inset black field with a keyboard hint; the path bar shares the shell.",
+      "html": "<div class=\"ds-search\">Search <kbd>Ctrl K</kbd></div>",
+      "css": ".ds-search{font:13px/1.45 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;width:300px;height:36px;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;border-radius:10px;border:1px solid #2e2e2e;background:#000;color:#a3a3a3;transition:border-color 160ms,color 160ms}.ds-search:hover{border-color:#3d3d3d;color:#bdbdbd}.ds-search kbd{margin-left:auto;font:11px/1 inherit;border:1px solid #2e2e2e;border-radius:5px;padding:3px 6px;color:#a3a3a3}"
+    },
+    {
+      "name": "Panel with Rows",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "A floating panel holding details-view rows with hover and selected states.",
+      "html": "<div class=\"ds-panel\"><div class=\"ds-row\">Invoices 2026<span>Folder</span></div><div class=\"ds-row\" aria-selected=\"true\">report.pdf<span>2.4 MB</span></div><div class=\"ds-row\">notes.txt<span>4 KB</span></div></div>",
+      "css": ".ds-panel{background:#0f0f0f;border:1px solid #2e2e2e;border-radius:12px;padding:4px 6px 8px;width:360px;outline:8px solid #000}.ds-row{font:13px/1.45 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;display:flex;justify-content:space-between;align-items:center;height:36px;padding:0 12px;margin-bottom:2px;border-radius:8px;color:#fff;font-variant-numeric:tabular-nums;transition:background 120ms}.ds-row span{color:#a3a3a3}.ds-row:hover{background:#141414}.ds-row[aria-selected=true]{background:#1f1f1f;box-shadow:inset 0 0 0 1px #3d3d3d}.ds-row[aria-selected=true] span{color:#c4c4c4}"
+    },
+    {
+      "name": "Context Menu",
+      "kind": "custom",
+      "refersTo": "menu",
+      "description": "Floating menu with shortcut hints; overlays carry the ring border and a shadow.",
+      "html": "<div class=\"ds-menu\"><button>Copy<kbd>Ctrl C</kbd></button><button>Rename<kbd>F2</kbd></button><hr><button>Delete<kbd>Del</kbd></button></div>",
+      "css": ".ds-menu{min-width:220px;padding:6px;border-radius:12px;background:#141414;border:1px solid #3d3d3d;box-shadow:0 16px 48px rgba(0,0,0,.7)}.ds-menu button{font:13px/1.45 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;width:100%;display:flex;align-items:center;height:32px;padding:0 10px;border:0;border-radius:7px;background:none;color:#fff;text-align:left}.ds-menu button:hover,.ds-menu button:focus-visible{background:#1f1f1f;outline:none}.ds-menu kbd{margin-left:auto;font:inherit;color:#808080}.ds-menu hr{border:0;border-top:1px solid #2e2e2e;margin:6px 4px}"
+    },
+    {
+      "name": "Transfer Progress",
+      "kind": "custom",
+      "refersTo": "usage-track",
+      "description": "Status-bar transfer: white label and a linear white fill on a 4px track.",
+      "html": "<div class=\"ds-xfer\"><span>Copying 412 of 1,280</span><span class=\"ds-track\"><i style=\"width:32%\"></i></span></div>",
+      "css": ".ds-xfer{font:13px/1.45 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif;display:flex;align-items:center;gap:14px;color:#fff;font-variant-numeric:tabular-nums;background:#0f0f0f;border:1px solid #2e2e2e;border-radius:12px;height:44px;padding:0 16px}.ds-track{display:block;width:240px;height:4px;border-radius:2px;background:#1f1f1f;overflow:hidden}.ds-track i{display:block;height:100%;border-radius:2px;background:#fff;transition:width 200ms linear}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Floating Panels on Black",
+    "overview": "Every job in the window is its own rounded panel floating on a pure black ground, separated by thin black gutters, and the arrangement belongs to the user. Tabs, toolbar, sidebar, file list, preview and status are each a near-black slab with a hairline grey border; switching between single, dual and preview layouts makes the panels glide into their new geometry, and splitters resize them with widths remembered.\n\nThe world is strictly monochrome: black for ground, white for content, greys for borders, hover and selection. Hierarchy comes from three text greys and three surface steps, never from hue. The interface is dense and quiet in the manner of a native desktop tool (13px system text, 32 to 36px rows), so the files themselves are the loudest thing on screen. White as a fill is reserved for exactly one control: the primary action.\n\nMotion is a soft, decelerating spring with no bounce. Panels animate geometry by transform and clip-path only; content inside them snaps to its final layout so large folders never re-lay out per frame. A panel that leaves the layout exits as a fixed ghost copy at its old position, fading out while sliding 24px to the right.",
+    "keyCharacteristics": [
+      "Pure black ground, 8px gutters, near-black panels with 1px grey borders and 12px corners.",
+      "Strict black, white and grey; no hue anywhere.",
+      "Native density: 13px system UI text, tabular numerals, 36px rows.",
+      "One filled-white control per visible layer.",
+      "Layout glide by FLIP (transform plus clip-path), 300ms, no bounce."
+    ],
+    "rules": [
+      {
+        "name": "The Monochrome Rule",
+        "body": "No hue, ever. State is shown by surface step, border step and text step; nothing is tinted.",
+        "section": "colors"
+      },
+      {
+        "name": "The AA Floor Rule",
+        "body": "Secondary text is never darker than #a3a3a3 and tertiary never darker than #808080 on the panel surface. These were raised from the original direction (#8f8f8f, #5c5c5c) to clear WCAG AA; do not lower them back. Tertiary text is never used on the Selection Grey fill: on a selected or current item (the current nav item's count, the highlighted palette result's location) it steps up to Secondary Grey.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Sizes, counts, dates and the status bar use tabular numerals so columns and progress figures do not jitter.",
+        "section": "typography"
+      },
+      {
+        "name": "The Two Weights Rule",
+        "body": "400 for reading, 600 for names and headings. No light or bold extremes.",
+        "section": "typography"
+      },
+      {
+        "name": "The Gutter Rule",
+        "body": "Panels never touch. Every pair of panels is separated by the same 8px of true black.",
+        "section": "layout"
+      },
+      {
+        "name": "The User Owns The Layout Rule",
+        "body": "Layout choice and splitter widths are user state and are remembered; never reset them on navigation.",
+        "section": "layout"
+      },
+      {
+        "name": "The Panels Don't Float Up Rule",
+        "body": "Panels sit on the ground with a border, not a shadow. Only overlays get a shadow, and every overlay also gets the stronger ring border.",
+        "section": "elevation"
+      },
+      {
+        "name": "The One White Rule",
+        "body": "At most one filled-white button is visible per layer: Open in the preview (or Copy to… when several files are selected), and the confirm button in a dialog, which sits over a scrim. Everything else is outlined, quiet or icon-only.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "**Do** keep every job in its own 12px-radius panel on true black with an 8px gutter.",
+      "**Do** animate layout changes with FLIP on transform and clip-path (300ms, cubic-bezier(.22, 1, .36, 1)) and let panel content snap to its final layout; a departing panel leaves as a ghost copy that fades and slides 24px out over 240ms.",
+      "**Do** show selection as a Selection Grey fill plus an inset Ring Grey ring, and keyboard focus with Focus Grey.",
+      "**Do** honour reduced motion: the glide is skipped and all animation collapses to 1ms.",
+      "**Do** keep secondary text at #a3a3a3 and tertiary at #808080 or lighter, and step tertiary up to secondary on any Selection Grey fill."
+    ],
+    "donts": [
+      "**Don't** introduce any hue, tint or coloured accent; the palette is black, white and grey by binding commitment.",
+      "**Don't** fill more than one button white per layer.",
+      "**Don't** animate grid tracks or widths per frame for the layout switch; it re-lays out large folders on every frame.",
+      "**Don't** put shadows on in-window panels; shadows belong to overlays only.",
+      "**Don't** bounce or overshoot content in motion."
+    ]
+  }
+}

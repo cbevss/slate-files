@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slate</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.1l2 2.5h8.9A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6.5 3h7.5l4.5 4.5v12A1.5 1.5 0 0 1 17 21H6.5A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3z"/><path d="M13.5 3v5h5"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6.5 3h7.5l4.5 4.5v12A1.5 1.5 0 0 1 17 21H6.5A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3z"/><path d="M13.5 3v5h5M8.5 12.5h7M8.5 16h5"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 17.5 5-4.5 4 3.5 3-2.5 4.5 3.5"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="5.5" width="13" height="13" rx="2"/><path d="m16 10.5 5-3v9l-5-3"/></symbol>
+  <symbol id="i-audio" viewBox="0 0 24 24"><path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
+  <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="5" rx="1.2"/><path d="M5 9v9.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V9M10 13h4"/></symbol>
+  <symbol id="i-app" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 8.5h17M6.5 6.5h.01M9 6.5h.01"/></symbol>
+  <symbol id="i-disc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="i-table" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5m6-6-6 6 6 6"/></symbol>
+  <symbol id="i-fwd" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5m-6 6 6-6 6 6"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-sort" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-desktop" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.8"/><path d="M8.5 20h7M12 16v4"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 4 2.4 5 5.4.7-4 3.8 1 5.4L12 16.3 7.2 18.9l1-5.4-4-3.8 5.4-.7z"/></symbol>
+  <symbol id="i-drive" viewBox="0 0 24 24"><rect x="3" y="13" width="18" height="6.5" rx="1.8"/><path d="M4.5 13 7 5.5h10l2.5 7.5M16.5 16.25h.01"/></symbol>
+  <symbol id="i-usb" viewBox="0 0 24 24"><rect x="7" y="9" width="10" height="12" rx="2"/><path d="M9 9V3.5h6V9M10.5 6h.01M13.5 6h.01"/></symbol>
+  <symbol id="i-pc" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="1.8"/><path d="M7 20h10"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></symbol>
+  <symbol id="i-move" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.1l2 2.5h8.9A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/><path d="M9 13.5h6m-2.5-2.5 2.5 2.5-2.5 2.5"/></symbol>
+  <symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><path d="M8.3 15.7 18 4M15.7 15.7 6 4"/></symbol>
+  <symbol id="i-paste" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1M9 12h6M9 16h4"/></symbol>
+  <symbol id="i-rename" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="m14.5 7.5 3 3"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 12.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5l1-12.5M10 11v6M14 11v6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-min" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+  <symbol id="i-max" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></symbol>
+  <symbol id="i-l-single" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M8 5v14"/></symbol>
+  <symbol id="i-l-dual" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M8 5v14M14.25 5v14"/></symbol>
+  <symbol id="i-l-prev" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M8 5v14M15.5 5v14"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z"/></symbol>
+  <symbol id="i-newfolder" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.1l2 2.5h8.9A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/><path d="M12 11v6M9 14h6"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h14m-4-4 4 4-4 4M20 16H6m4-4-4 4 4 4"/></symbol>
+</svg>
+
+<div class="app" id="app">
+  <header class="tabrow" data-tauri-drag-region>
+    <div class="tabs" id="tabs" role="tablist" aria-label="Open folders"></div>
+    <button class="newtab" id="newtab" title="New tab (Ctrl+T)" aria-label="New tab"><svg class="i"><use href="#i-plus"/></svg></button>
+    <div class="drag" data-tauri-drag-region></div>
+    <div class="winctl">
+      <button id="w-min" aria-label="Minimise"><svg class="i"><use href="#i-min"/></svg></button>
+      <button id="w-max" aria-label="Maximise"><svg class="i"><use href="#i-max"/></svg></button>
+      <button id="w-close" class="x" aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button>
+    </div>
+  </header>
+
+  <div class="toolbar panel">
+    <button class="ib" id="back" title="Back (Alt+Left)" aria-label="Back"><svg class="i"><use href="#i-back"/></svg></button>
+    <button class="ib" id="fwd" title="Forward (Alt+Right)" aria-label="Forward"><svg class="i"><use href="#i-fwd"/></svg></button>
+    <button class="ib" id="up" title="Up one level (Alt+Up)" aria-label="Up one level"><svg class="i"><use href="#i-up"/></svg></button>
+    <nav class="path" id="path" aria-label="Location"></nav>
+    <div class="seg" role="group" aria-label="Layout">
+      <span class="thumb" id="segthumb"></span>
+      <button data-layout="single" title="Single pane (Ctrl+1)" aria-label="Single pane"><svg class="i"><use href="#i-l-single"/></svg></button>
+      <button data-layout="dual" title="Two panes (Ctrl+2)" aria-label="Two panes"><svg class="i"><use href="#i-l-dual"/></svg></button>
+      <button data-layout="preview" title="With preview (Ctrl+3)" aria-label="With preview"><svg class="i"><use href="#i-l-prev"/></svg></button>
+    </div>
+    <button class="search" id="search" aria-label="Search everything"><svg class="i"><use href="#i-search"/></svg><span class="lbl">Search everything</span><kbd>Ctrl K</kbd></button>
+  </div>
+
+  <main class="body" id="body">
+    <section class="col" id="col-side">
+      <div class="panel side" id="side" aria-label="Places"></div>
+    </section>
+    <section class="col" id="col-a">
+      <div class="splitter" data-split="side" title="Drag to resize"></div>
+      <div class="panel pane" id="pane-a"></div>
+    </section>
+    <section class="col off" id="col-b">
+      <div class="panel pane" id="pane-b"></div>
+    </section>
+    <section class="col" id="col-prev">
+      <div class="splitter" data-split="prev" title="Drag to resize"></div>
+      <aside class="panel prev" id="prev" aria-label="Preview"></aside>
+    </section>
+  </main>
+
+  <footer class="status panel num" id="status">
+    <span id="st-count"></span>
+    <span class="sel" id="st-sel"></span>
+    <div class="xfer" id="xfer" aria-live="polite">
+      <span class="lbl" id="x-lbl"></span>
+      <div class="track"><i id="x-bar" style="width:0"></i></div>
+      <span id="x-info"></span>
+      <button class="ib" id="x-pause" aria-label="Pause transfer"><svg class="i"><use href="#i-pause"/></svg></button>
+      <button class="ib" id="x-cancel" aria-label="Cancel transfer"><svg class="i"><use href="#i-x"/></svg></button>
+    </div>
+    <span class="drv" id="st-drv"></span>
+  </footer>
+</div>
+
+<div class="scrim" id="pal-scrim" hidden>
+  <div class="palette" role="dialog" aria-label="Search and commands">
+    <div class="q"><svg class="i"><use href="#i-search"/></svg><input id="pal-input" placeholder="Search files, folders and actions" autocomplete="off" spellcheck="false"><span class="count num" id="pal-count"></span></div>
+    <ul id="pal-list" role="listbox"></ul>
+    <div class="foot"><span><kbd>↑</kbd> <kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span><span style="margin-left:auto" id="pal-idx"></span></div>
+  </div>
+</div>
+
+<div class="scrim" id="dlg-scrim" hidden>
+  <div class="dialog" role="dialog" aria-labelledby="dlg-title">
+    <h2 id="dlg-title"></h2>
+    <p id="dlg-sub"></p>
+    <div id="dlg-body"></div>
+    <div class="row-end"><button class="btn" id="dlg-cancel">Cancel</button><button class="btn primary" id="dlg-ok"></button></div>
+  </div>
+</div>
+
+<div class="menu" id="menu" role="menu" hidden></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="data.js"></script>
+<script src="fs.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

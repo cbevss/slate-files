@@ -1,0 +1,17 @@
+{
+  "name": "slate",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Slate: a fast, clean file explorer for Windows and Linux",
+  "license": "MIT",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "preview": "python -m http.server 5173 --directory ui --bind 127.0.0.1",
+    "icons": "node scripts/make-icon.mjs && tauri icon src-tauri/icons/source.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  }
+}
