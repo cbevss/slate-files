@@ -14,7 +14,7 @@
   document.documentElement.dataset.platform = FSX.platform;
 
   /* ---------- preferences (UI side; Rust keeps its own for updates, defaults, dialogs) ---------- */
-  const PREFS = { startIn: "last", exts: true, foldersFirst: true, singleClick: false, icons: "system", density: "comfortable", confirmTrash: false, motion: "full", dates: "relative" };
+  const PREFS = { view: "details", startIn: "last", exts: true, foldersFirst: true, singleClick: false, icons: "system", density: "comfortable", confirmTrash: false, motion: "full", dates: "relative" };
   const pref = (k) => store.get("pref." + k, PREFS[k]);
   function applyPrefs() {
     const d = document.documentElement.dataset;
@@ -126,6 +126,78 @@
       if (u && s) { const img = new Image(); img.className = "fi"; img.alt = ""; img.src = u; s.replaceWith(img); }
     });
     if (iconWant.size) iconTimer = setTimeout(flushIcons, 0);
+  }
+
+  /* ---------- views: Details, Tiles, Medium icons, Large icons ---------- */
+  const VIEWS = [["details", "Details", "v-details"], ["tiles", "Tiles", "v-tiles"], ["medium", "Medium icons", "v-medium"], ["large", "Large icons", "v-large"]];
+  const THUMB_PX = { tiles: 40, medium: 56, large: 112 }; // CSS size of the picture in each view
+  const thumbCache = new Map(); // "size|path" -> data URI, or null while loading / none
+  const thumbSize = (v) => Math.min(256, Math.round(THUMB_PX[v] * (window.devicePixelRatio || 1)));
+  const useThumbs = () => FSX.real && FSX.platform === "windows" && pref("icons") === "system";
+  function tileArt(e, v) {
+    if (useThumbs()) {
+      const u = thumbCache.get(thumbSize(v) + "|" + e.path);
+      if (u) return `<img class="th-img" src="${u}" alt="" draggable="false">`;
+    }
+    return icon(kind(e).icon, e.dir ? "i dir" : "i");
+  }
+  // fetch thumbnails only for tiles that scroll into view
+  const thumbWant = new Set();
+  let thumbTimer = null, thumbBusy = false;
+  const thumbObserver = new IntersectionObserver((ents) => {
+    ents.forEach((en) => {
+      if (!en.isIntersecting) return;
+      thumbObserver.unobserve(en.target);
+      const k = thumbSize(pref("view")) + "|" + en.target.dataset.path;
+      if (!thumbCache.has(k)) thumbWant.add(k);
+    });
+    if (thumbWant.size && !thumbTimer) thumbTimer = setTimeout(flushThumbs, 30);
+  }, { rootMargin: "200px" });
+  async function flushThumbs() {
+    thumbTimer = null;
+    if (thumbBusy) { thumbTimer = setTimeout(flushThumbs, 60); return; }
+    const bySize = new Map();
+    [...thumbWant].slice(0, 24).forEach((k) => { thumbWant.delete(k); thumbCache.set(k, null); const at = k.indexOf("|"); const sz = +k.slice(0, at); bySize.set(sz, [...(bySize.get(sz) || []), k.slice(at + 1)]); });
+    thumbBusy = true;
+    for (const [sz, paths] of bySize) {
+      const got = await FSX.thumbs(paths, sz).catch(() => ({}));
+      Object.entries(got).forEach(([p, u]) => {
+        thumbCache.set(sz + "|" + p, u);
+        document.querySelectorAll(`.list.grid .row[data-path="${CSS.escape(p)}"] .th`).forEach((th) => { th.innerHTML = `<img class="th-img" src="${u}" alt="" draggable="false">`; th.classList.add("got"); });
+      });
+    }
+    thumbBusy = false;
+    if (thumbWant.size) thumbTimer = setTimeout(flushThumbs, 0);
+  }
+  function setView(v) {
+    if (!VIEWS.some((x) => x[0] === v) || v === pref("view")) return;
+    store.set("pref.view", v);
+    syncViewButton();
+    visiblePanes().forEach((i) => renderPane(i, true));
+    renderChrome();
+  }
+  function syncViewButton() {
+    const v = VIEWS.find((x) => x[0] === pref("view")) || VIEWS[0];
+    $("#viewicon").innerHTML = `<use href="#i-${v[2]}"/>`;
+    $("#viewlbl").textContent = v[1];
+  }
+  function showViewMenu() {
+    const r = $("#viewbtn").getBoundingClientRect(), cur = pref("view");
+    const m = $("#menu");
+    m.innerHTML = VIEWS.map(([v, l, ic], n) => `<button role="menuitemradio" aria-checked="${v === cur}" data-v="${v}">${icon(ic)}${l}<kbd>Ctrl+Shift+${n + 1}</kbd></button>`).join("");
+    m.hidden = false;
+    m.style.left = Math.min(r.left, innerWidth - m.offsetWidth - 8) + "px";
+    m.style.top = r.bottom + 6 + "px";
+    m.querySelectorAll("[data-v]").forEach((b) => (b.onclick = () => { m.hidden = true; setView(b.dataset.v); }));
+    (m.querySelector("[aria-checked=true]") || m.querySelector("button")).focus();
+  }
+  // columns in the icon grid, for arrow keys
+  function gridCols(i) {
+    const rows = paneBox(i).querySelectorAll(".list.grid .row");
+    if (rows.length < 2) return 1;
+    const top = rows[0].offsetTop; let n = 0;
+    for (const r of rows) { if (r.offsetTop !== top) break; n++; }
+    return Math.max(1, n);
   }
 
   /* ---------- paths (Windows "C:\a\b" or Linux "/a/b"; "" is This PC) ---------- */
@@ -410,7 +482,8 @@
       FCOLS.forEach((c) => { const s = p.filters[c]; if (s && s.size) chips.push([c, `${names[c]}: ${[...s].map(esc).join(", ")}`]); });
       h += `<div class="fstrip">${icon("filter")}${chips.map(([c, t]) => `<button class="chip" data-unfilter="${c}" title="Remove this filter"><span>${t}</span>${icon("x")}</button>`).join("")}<span class="num fcount">${list.length.toLocaleString()} of ${baseList(p).length.toLocaleString()}</span><button class="link" data-unfilter="all">Clear filters</button></div>`;
     }
-    h += `<div class="list" tabindex="0" role="listbox" aria-multiselectable="true" aria-label="${esc(baseOf(p.path))}">`;
+    const view = pref("view"), grid = view !== "details";
+    h += `<div class="list${grid ? " grid v-" + view : ""}" tabindex="0" role="listbox" aria-multiselectable="true" aria-label="${esc(baseOf(p.path))}">`;
     if (!list.length) h += filterOn(p)
       ? `<div class="empty"><div><b>Nothing matches these filters</b>${plural(baseList(p).length, "item")} here are hidden by the filters above.</div></div>`
       : `<div class="empty"><div><b>This folder is empty</b>${PICK ? "Choose another folder." : "Drop files here, or press Ctrl+Shift+N to make a new folder."}</div></div>`;
@@ -422,6 +495,12 @@
       const cut = S.clip && S.clip.mode === "cut" && S.clip.paths.includes(e.path);
       const sz = e.drive ? `${fmtSize(e.drive.free)} free` : e.dir ? (sizes.has(e.path) ? fmtSize(sizes.get(e.path)) : e.items != null ? plural(e.items, "item") : "") : fmtSize(e.size);
       const anim = animateRows && n < 24;
+      if (grid) {
+        const cls = `row${anim ? " enter" : ""}${p.cursor === e.path ? " cursor" : ""}${cut ? " cut" : ""}${e.hidden ? " hid" : ""}`;
+        const meta = view === "tiles" ? `<div class="meta"><span class="sub">${k.label}</span><span class="sub num">${sz}</span></div>` : "";
+        rows.push(`<div class="${cls}" role="option" aria-selected="${sel}" draggable="true" data-path="${esc(e.path)}" title="${esc(e.name)}"${anim ? ` style="animation-delay:${n * 10}ms"` : ""}><div class="nm"><div class="th">${tileArt(e, view)}</div><span>${esc(shownName(e))}</span></div>${meta}</div>`);
+        continue;
+      }
       rows.push(`<div class="row${anim ? " enter" : ""}${p.cursor === e.path ? " cursor" : ""}${cut ? " cut" : ""}${e.hidden ? " hid" : ""}" role="option" aria-selected="${sel}" draggable="true" data-path="${esc(e.path)}"${anim ? ` style="animation-delay:${n * 12}ms"` : ""}${sysIcons() ? ` data-ik="${esc(iconKey(e))}"` : ""}><div class="nm">${fileIcon(e)}<span>${esc(shownName(e))}</span></div><span class="sub c-mod num">${fmtDate(e.mtime)}</span><span class="sub c-type">${k.label}</span><span class="sub r num">${sz}</span></div>`);
     }
     h += rows.join("") + `</div>`;
@@ -439,7 +518,17 @@
       if (c === "all") p.filters = {}; else if (c === "text") p.filters.text = ""; else delete p.filters[c];
       renderPane(i); renderChrome();
     }));
-    wantIcons(list);
+    if (grid) { if (useThumbs()) lst.querySelectorAll(".row").forEach((r) => { if (!thumbCache.get(thumbSize(view) + "|" + r.dataset.path)) thumbObserver.observe(r); }); }
+    else wantIcons(list);
+    // Ctrl+scroll steps through the views, like Explorer
+    lst.addEventListener("wheel", (ev) => {
+      if (!ev.ctrlKey) return;
+      ev.preventDefault();
+      const now = Date.now(); if (now - (lst._wheelAt || 0) < 180) return; lst._wheelAt = now;
+      const at = VIEWS.findIndex((x) => x[0] === pref("view"));
+      const to = Math.max(0, Math.min(VIEWS.length - 1, at + (ev.deltaY < 0 ? 1 : -1)));
+      setView(VIEWS[to][0]);
+    }, { passive: false });
     lst.addEventListener("mousedown", (ev) => onRowDown(ev, i));
     lst.addEventListener("dblclick", (ev) => { const r = ev.target.closest(".row"); if (r && !pref("singleClick")) open(i, r.dataset.path); });
     lst.addEventListener("click", (ev) => {
@@ -1001,7 +1090,7 @@
         ["sizes", "Calculate folder sizes", "drive", ""], ["dupes", "Find duplicates here", "copy", ""], ["selectall", "Select all", "copy", "Ctrl+A"]];
     showMenu(ev, items, (a) => act(a, i));
   }
-  document.addEventListener("mousedown", (e) => { if (!e.target.closest("#menu")) $("#menu").hidden = true; });
+  document.addEventListener("mousedown", (e) => { if (!e.target.closest("#menu") && !e.target.closest("#viewbtn")) $("#menu").hidden = true; });
 
   /* ---------- command palette ---------- */
   let palSel = 0, palItems = [], palSeq = 0;
@@ -1012,6 +1101,7 @@
     ["Show or hide hidden files", () => toggleHidden(), "info", "Ctrl+H"], ["Calculate folder sizes", () => act("sizes"), "drive", ""],
     ["Find duplicate files in this folder", () => act("dupes"), "copy", ""], ["Rebuild the search index", () => { FSX.reindex(); toast("Rebuilding the search index in the background"); }, "search", ""],
     ["Settings", () => openSettings(), "gear", "Ctrl+,"],
+    ...VIEWS.map(([v, l, ic], n) => [`View as ${l.toLowerCase()}`, () => setView(v), ic, `Ctrl+Shift+${n + 1}`]),
     ["Check for updates", () => FSX.checkUpdates(false), "download", ""],
     ["Turn automatic updates on or off", () => toggleAutoUpdate(), "download", ""],
     ["Make Slate the default file explorer", () => setDefault(true), "star", ""],
@@ -1384,6 +1474,7 @@
     if (ctrl && k === "w") { e.preventDefault(); return closeTab(S.tab); }
     if (ctrl && k === "h") { e.preventDefault(); return toggleHidden(); }
     if (ctrl && k === "Tab") { e.preventDefault(); return selectTab((S.tab + (e.shiftKey ? S.tabs.length - 1 : 1)) % S.tabs.length); }
+    if (ctrl && e.shiftKey && /^Digit[1-4]$/.test(e.code)) { e.preventDefault(); return setView(VIEWS[+e.code.slice(5) - 1][0]); }
     if (ctrl && ["1", "2", "3"].includes(k)) { e.preventDefault(); return setLayout(["single", "dual", "preview"][+k - 1]); }
     if (e.altKey && k === "ArrowLeft") { e.preventDefault(); return back(); }
     if (e.altKey && k === "ArrowRight") { e.preventDefault(); return fwd(); }
@@ -1404,9 +1495,12 @@
       const r = rowEl(S.pane, path); if (r) r.scrollIntoView({ block: "nearest" });
     };
     const ci = p.cursor ? list.indexOf(p.cursor) : -1;
+    const cols = pref("view") === "details" ? 1 : gridCols(S.pane);
     switch (true) {
-      case k === "ArrowDown": e.preventDefault(); move(ci + 1); break;
-      case k === "ArrowUp": e.preventDefault(); move(ci < 0 ? 0 : ci - 1); break;
+      case k === "ArrowDown": e.preventDefault(); move(ci < 0 ? 0 : ci + cols); break;
+      case k === "ArrowUp": e.preventDefault(); move(ci < 0 ? 0 : ci - cols); break;
+      case k === "ArrowRight" && cols > 1: e.preventDefault(); move(ci + 1); break;
+      case k === "ArrowLeft" && cols > 1: e.preventDefault(); move(ci < 0 ? 0 : ci - 1); break;
       case k === "Home": e.preventDefault(); move(0); break;
       case k === "End": e.preventDefault(); move(list.length - 1); break;
       case k === "PageDown": e.preventDefault(); move(ci + 12); break;
@@ -1482,6 +1576,8 @@
   $("#newtab").onclick = () => addTab(pane().path);
   $("#search").onclick = openPalette;
   $("#gear").onclick = openSettings;
+  $("#viewbtn").onclick = (e) => { e.stopPropagation(); if (!$("#menu").hidden) { $("#menu").hidden = true; return; } showViewMenu(); };
+  syncViewButton();
   $("#set-close").onclick = () => closeScrim("#set-scrim");
   document.querySelectorAll(".seg button").forEach((b) => (b.onclick = () => setLayout(b.dataset.layout)));
   document.addEventListener("mouseup", (e) => { if (e.button === 3) back(); if (e.button === 4) fwd(); });

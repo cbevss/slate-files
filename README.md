@@ -43,6 +43,7 @@ On Linux, Slate uses the system WebKitGTK 4.1, which `dnf` pulls in automaticall
 - Folder sizes, and a duplicate finder that compares file contents with SHA-256.
 - SHA-256 checksums for downloads such as ISOs and installers.
 - Column filters, like Explorer's: open the arrow on any column header to show only certain types, dates (Today, Last week…), sizes (Tiny, Large…) or names.
+- Views like Explorer's (the View button, Ctrl+Shift+1–4, or Ctrl+scroll): Details, Tiles, Medium icons and Large icons. On Windows the icon views show real thumbnails of photos, videos and PDFs.
 - Windows file icons (switch to Slate's own monochrome icons in Settings).
 - Settings (the gear, or Ctrl+,): start folder, single or double click, hidden files, file extensions, folders first, delete confirmation, row spacing, date style, animations, updates and the search index.
 

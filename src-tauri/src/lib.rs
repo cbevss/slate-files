@@ -183,6 +183,17 @@ async fn file_icons(keys: Vec<String>) -> Result<std::collections::HashMap<Strin
     blocking(move || icons::icons(keys)).await
 }
 
+#[tauri::command]
+async fn thumbnails(paths: Vec<String>, size: u32) -> Result<std::collections::HashMap<String, String>, String> {
+    // ask in OS form, answer under the paths the UI used
+    let pairs: Vec<(String, String)> = paths.into_iter().map(|p| (fsops::os_path(&p).to_string_lossy().to_string(), p)).collect();
+    blocking(move || {
+        let got = icons::thumbs(pairs.iter().map(|(os, _)| os.clone()).collect(), size);
+        pairs.into_iter().filter_map(|(os, ui)| got.get(&os).map(|v| (ui, v.clone()))).collect()
+    })
+    .await
+}
+
 /// "file", "dir" or "none"
 #[tauri::command]
 fn path_kind(path: String) -> &'static str {
@@ -262,7 +273,7 @@ pub fn run() {
             list_dir, drives, places, platform, free_space, rename, mkdir, trash, restore, delete_permanent,
             open_path, dir_size, sha256, duplicates, search, index_status, reindex, start_transfer,
             pause_transfer, cancel_transfer, startup_path, default_status, set_default,
-            auto_update_enabled, set_auto_update, check_updates, file_icons, path_kind,
+            auto_update_enabled, set_auto_update, check_updates, file_icons, thumbnails, path_kind,
             picker_request, picker_done, picker_enabled, set_picker
         ])
         .run(tauri::generate_context!())

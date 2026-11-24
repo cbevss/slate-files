@@ -22,8 +22,30 @@ pub fn icons(keys: Vec<String>) -> HashMap<String, String> {
     keys.into_iter().filter_map(|k| imp::icon(&k).map(|v| (k, v))).collect()
 }
 
+/// Thumbnails for the icon views: photos, videos and PDFs show their content,
+/// everything else gets its large shell icon. Keyed by path.
+#[cfg(not(windows))]
+pub fn thumbs(_paths: Vec<String>, _size: u32) -> HashMap<String, String> {
+    HashMap::new()
+}
+
+#[cfg(windows)]
+pub fn thumbs(paths: Vec<String>, size: u32) -> HashMap<String, String> {
+    use windows::Win32::System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED};
+    let _ = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) };
+    let size = size.clamp(16, 256) as i32;
+    paths.into_iter().filter_map(|p| imp::thumb(&p, size).map(|v| (p, v))).collect()
+}
+
 #[cfg(all(test, windows))]
 mod tests {
+    #[test]
+    fn thumbnails_become_pngs() {
+        let dir = std::env::var("WINDIR").unwrap_or_else(|_| "C:\\Windows".into());
+        let got = super::thumbs(vec![dir.clone()], 96);
+        assert!(got.get(&dir).map(|v| v.starts_with("data:image/png;base64,")).unwrap_or(false), "no thumbnail for {dir}");
+    }
+
     #[test]
     fn shell_icons_become_pngs() {
         let got = super::icons(vec!["ext:pdf".into(), "ext:".into(), "dir:".into(), "C:\\".into()]);
@@ -63,6 +85,61 @@ mod imp {
             let _ = DestroyIcon(info.hIcon);
         }
         png.map(|b| format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(b)))
+    }
+
+    pub fn thumb(path: &str, size: i32) -> Option<String> {
+        use windows::Win32::Foundation::SIZE;
+        let p = if path.len() == 2 && path.ends_with(':') { format!("{path}\\") } else { path.to_string() };
+        let w = HSTRING::from(p);
+        let f: IShellItemImageFactory = unsafe { SHCreateItemFromParsingName(&w, None) }.ok()?;
+        let bmp = unsafe { f.GetImage(SIZE { cx: size, cy: size }, SIIGBF_RESIZETOFIT | SIIGBF_BIGGERSIZEOK) }.ok()?;
+        let png = bitmap_png(bmp);
+        unsafe {
+            let _ = DeleteObject(bmp.into());
+        }
+        png.map(|b| format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(b)))
+    }
+
+    /// A shell thumbnail bitmap (32-bit, premultiplied alpha) as PNG.
+    fn bitmap_png(bmp: HBITMAP) -> Option<Vec<u8>> {
+        let mut bm = BITMAP::default();
+        let got = unsafe { GetObjectW(bmp.into(), std::mem::size_of::<BITMAP>() as i32, Some(&mut bm as *mut _ as _)) };
+        if got == 0 || bm.bmWidth <= 0 || bm.bmHeight <= 0 {
+            return None;
+        }
+        let (w, h) = (bm.bmWidth, bm.bmHeight);
+        let dc = unsafe { CreateCompatibleDC(None) };
+        let px = bits(dc, bmp, w, h);
+        unsafe {
+            let _ = DeleteDC(dc);
+        }
+        let mut px = px?;
+        let opaque = px.chunks(4).all(|c| c[3] == 0); // photos often carry no alpha at all
+        for c in px.chunks_mut(4) {
+            c.swap(0, 2);
+            if opaque {
+                c[3] = 255;
+            } else if c[3] > 0 && c[3] < 255 {
+                let a = c[3] as u32;
+                for v in &mut c[..3] {
+                    *v = ((*v as u32 * 255 + a / 2) / a).min(255) as u8;
+                }
+            }
+        }
+        encode(&px, w as u32, h as u32)
+    }
+
+    fn encode(px: &[u8], w: u32, h: u32) -> Option<Vec<u8>> {
+        let mut out = Vec::new();
+        {
+            let mut enc = png::Encoder::new(&mut out, w, h);
+            enc.set_color(png::ColorType::Rgba);
+            enc.set_depth(png::BitDepth::Eight);
+            enc.set_compression(png::Compression::Fast);
+            let mut wr = enc.write_header().ok()?;
+            wr.write_image_data(px).ok()?;
+        }
+        Some(out)
     }
 
     fn bits(dc: HDC, bmp: HBITMAP, w: i32, h: i32) -> Option<Vec<u8>> {
@@ -111,16 +188,7 @@ mod imp {
             unsafe {
                 let _ = DeleteDC(dc);
             }
-            let px = px?;
-            let mut out = Vec::new();
-            {
-                let mut enc = png::Encoder::new(&mut out, w as u32, h as u32);
-                enc.set_color(png::ColorType::Rgba);
-                enc.set_depth(png::BitDepth::Eight);
-                let mut wr = enc.write_header().ok()?;
-                wr.write_image_data(&px).ok()?;
-            }
-            Some(out)
+            encode(&px?, w as u32, h as u32)
         })();
         unsafe {
             let _ = DeleteObject(ii.hbmColor.into());
