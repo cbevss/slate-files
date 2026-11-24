@@ -1,8 +1,17 @@
 mod default_app;
 mod fsops;
+mod icons;
 mod index;
+mod picker;
+mod settings;
 mod transfer;
 mod update;
+
+/// Started by the dialog component to serve an Open/Save request: run
+/// without showing the main window.
+fn picker_host() -> bool {
+    std::env::args().any(|a| a == "--picker-host")
+}
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -163,7 +172,48 @@ fn set_auto_update(on: bool) -> Result<(), String> {
 /// Called by the UI once it is listening for "update-status" events.
 #[tauri::command]
 fn check_updates(app: tauri::AppHandle, quiet: bool) {
+    if quiet && picker_host() {
+        return; // a background launch for a file dialog: don't restart under the app
+    }
     tauri::async_runtime::spawn(update::run(app, quiet));
+}
+
+#[tauri::command]
+async fn file_icons(keys: Vec<String>) -> Result<std::collections::HashMap<String, String>, String> {
+    blocking(move || icons::icons(keys)).await
+}
+
+/// "file", "dir" or "none"
+#[tauri::command]
+fn path_kind(path: String) -> &'static str {
+    let p = fsops::os_path(&path);
+    match std::fs::metadata(p) {
+        Ok(m) if m.is_dir() => "dir",
+        Ok(_) => "file",
+        Err(_) => "none",
+    }
+}
+
+#[tauri::command]
+fn picker_request(id: u64) -> Option<serde_json::Value> {
+    picker::request(id)
+}
+
+#[tauri::command]
+fn picker_done(window: tauri::WebviewWindow, id: u64, paths: Vec<String>, type_index: Option<u32>) {
+    let paths = paths.iter().map(|p| fsops::os_path(p).to_string_lossy().to_string()).collect();
+    picker::finish(id, paths, type_index);
+    let _ = window.destroy();
+}
+
+#[tauri::command]
+fn picker_enabled() -> bool {
+    picker::enabled()
+}
+
+#[tauri::command]
+async fn set_picker(app: tauri::AppHandle, enable: bool) -> Result<(), String> {
+    blocking(move || picker::set_enabled(&app, enable)).await?
 }
 
 pub fn run() {
@@ -179,8 +229,12 @@ pub fn run() {
         // A second launch (double-clicking a folder, Win+E) opens a tab in the
         // window that's already running instead of starting another copy.
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            if argv.iter().any(|a| a == "--picker-host") {
+                return; // already running, so already serving dialogs
+            }
             let path = path_from_args(argv);
             if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
                 let _ = w.unminimize();
                 let _ = w.set_focus();
             }
@@ -190,7 +244,17 @@ pub fn run() {
         .manage(App { index, transfers: Arc::new(transfer::Transfers::default()) })
         .setup(|app| {
             if let Some(w) = app.get_webview_window("main") {
-                let _ = w.set_focus();
+                if picker_host() {
+                    let _ = w.hide();
+                } else {
+                    let _ = w.set_focus();
+                }
+            }
+            #[cfg(windows)]
+            {
+                picker::serve(app.handle().clone());
+                let h = app.handle().clone();
+                std::thread::spawn(move || picker::ensure_registered(&h));
             }
             Ok(())
         })
@@ -198,7 +262,8 @@ pub fn run() {
             list_dir, drives, places, platform, free_space, rename, mkdir, trash, restore, delete_permanent,
             open_path, dir_size, sha256, duplicates, search, index_status, reindex, start_transfer,
             pause_transfer, cancel_transfer, startup_path, default_status, set_default,
-            auto_update_enabled, set_auto_update, check_updates
+            auto_update_enabled, set_auto_update, check_updates, file_icons, path_kind,
+            picker_request, picker_done, picker_enabled, set_picker
         ])
         .run(tauri::generate_context!())
         .expect("error while running Slate");

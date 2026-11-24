@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "build": {
+    "beforeBuildCommand": "node scripts/build-dialog.mjs"
+  },
+  "bundle": {
+    "resources": {
+      "resources/dialog/": "dialog/"
+    }
+  }
+}

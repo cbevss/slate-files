@@ -9,35 +9,19 @@
 //!   Slate restarts.
 //! - Other Linux package installs (.deb): the UI is told an update exists.
 
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tauri_plugin_updater::UpdaterExt;
 
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 const REPO: &str = "cbevss/slate-files";
 
-#[derive(Serialize, Deserialize)]
-struct Settings {
-    auto_update: bool,
-}
-
-fn settings_path() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("slate").join("settings.json"))
-}
-
 pub fn auto_update_enabled() -> bool {
-    settings_path()
-        .and_then(|p| std::fs::read_to_string(p).ok())
-        .and_then(|s| serde_json::from_str::<Settings>(&s).ok())
-        .map(|s| s.auto_update)
-        .unwrap_or(true)
+    crate::settings::get_bool("auto_update", true)
 }
 
 pub fn set_auto_update(on: bool) -> Result<(), String> {
-    let p = settings_path().ok_or("No settings folder available.")?;
-    std::fs::create_dir_all(p.parent().unwrap()).map_err(|e| e.to_string())?;
-    std::fs::write(p, serde_json::to_string(&Settings { auto_update: on }).unwrap()).map_err(|e| e.to_string())
+    crate::settings::set("auto_update", on.into())
 }
 
 #[derive(Serialize, Clone)]
@@ -82,6 +66,10 @@ pub async fn run(app: AppHandle, quiet: bool) {
         Err(e) => return fail(&app, format!("Couldn't check for updates: {e}")),
     };
     let version = update.version.clone();
+    // never restart while another app is waiting on a Slate Open/Save dialog
+    if crate::picker::active() > 0 {
+        return emit(&app, Status { state: "error", version: Some(version), progress: None, message: Some("Finish the open file dialog first, then check for updates again.".into()) });
+    }
 
     #[cfg(target_os = "linux")]
     {

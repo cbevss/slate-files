@@ -42,15 +42,35 @@ On Linux, Slate uses the system WebKitGTK 4.1, which `dnf` pulls in automaticall
 - Undo (Ctrl+Z) for delete, rename, batch rename, copy, move and new folder.
 - Folder sizes, and a duplicate finder that compares file contents with SHA-256.
 - SHA-256 checksums for downloads such as ISOs and installers.
+- Column filters, like Explorer's: open the arrow on any column header to show only certain types, dates (Today, Last week…), sizes (Tiny, Large…) or names.
+- Windows file icons (switch to Slate's own monochrome icons in Settings).
+- Settings (the gear, or Ctrl+,): start folder, single or double click, hidden files, file extensions, folders first, delete confirmation, row spacing, date style, animations, updates and the search index.
 
 ## Make Slate your default file explorer
 
-Press **Ctrl+K** and choose **Make Slate the default file explorer**.
+Open **Settings** (the gear, or Ctrl+,) and turn on **Default file explorer**. It's also in Ctrl+K.
 
 - **Windows:** double-clicking folders and drives, and pressing **Win+E**, now opens Slate. Folders open as a new tab in the window that's already running. Only per-user registry keys under `HKCU\Software\Classes` change, and Explorer itself is untouched.
 - **Fedora KDE / Linux:** Slate becomes the handler for folders (`inode/directory`), the same setting as KDE's *Default Applications → File Manager*.
 
-To switch back, press Ctrl+K and choose **Restore Windows Explorer as default** (on Linux, *Restore the previous file manager as default*).
+To switch back, turn the setting off, or press Ctrl+K and choose **Restore Windows Explorer as default** (on Linux, *Restore the previous file manager as default*).
+
+## Experimental: Slate as the Open and Save dialog (Windows)
+
+Settings has an opt-in switch, **Use Slate for Open and Save dialogs**. When it's on, the Browse, Open and Save buttons in other apps show Slate instead of the Windows dialog.
+
+**This is risky; it's off by default for that reason.**
+
+- It works by registering a small component (`dialog/`) as the per-user provider of the Windows file dialogs. Every app's Open and Save then goes through it, so a bug could make other apps crash or fail to save.
+- Antivirus software may flag or block it, because malware uses the same Windows mechanism.
+- Apps running as administrator, Microsoft Store apps and some older apps keep the Windows dialog. So do apps that add their own controls to the dialog, apps that filter what it shows, and any time Slate can't be reached.
+- Hold **Shift** while a dialog opens to get the Windows one.
+
+To undo it by hand (for example if Slate won't start), run in PowerShell:
+
+```powershell
+reg delete "HKCU\Software\Classes\CLSID\{DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7}" /f; reg delete "HKCU\Software\Classes\CLSID\{C0B4E2F3-BA21-4773-8DBA-335EC946EB8B}" /f; reg delete "HKCU\Software\Classes\WOW6432Node\CLSID\{DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7}" /f; reg delete "HKCU\Software\Classes\WOW6432Node\CLSID\{C0B4E2F3-BA21-4773-8DBA-335EC946EB8B}" /f
+```
 
 ## Keyboard
 
@@ -65,6 +85,8 @@ To switch back, press Ctrl+K and choose **Restore Windows Explorer as default** 
 | Del / Shift+Del | Recycle Bin / permanent delete |
 | Ctrl+C / X / V, Ctrl+Z | Clipboard, undo |
 | Ctrl+H | Show hidden files |
+| Ctrl+, | Settings |
+| Middle-click a folder | Open it in a new tab |
 | Tab (two panes) | Switch pane |
 
 ## Build from source
@@ -89,6 +111,9 @@ src-tauri/
   src/fsops.rs     listing, drives, rename, trash/restore, sizes, hashes, duplicates
   src/index.rs     the in-memory search index
   src/transfer.rs  the parallel copy/move engine
+  src/icons.rs     Windows file icons
+  src/picker.rs    serves Open/Save requests from the dialog component
+dialog/      experimental Windows Open/Save dialog component (Rust COM DLL)
 DESIGN.md    the visual system (colours, type, spacing, motion, components)
 PRODUCT.md   who Slate is for and the principles behind it
 ```

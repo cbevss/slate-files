@@ -48,6 +48,14 @@
       setAutoUpdate: (on) => invoke("set_auto_update", { on }),
       checkUpdates: (quiet) => invoke("check_updates", { quiet }),
       onUpdate: (cb) => T.event.listen("update-status", (ev) => cb(ev.payload)),
+      icons: (keys) => invoke("file_icons", { keys }),
+      pathKind: (path) => invoke("path_kind", { path }),
+      pickerId: window.__SLATE_PICKER__ || null,
+      pickerRequest: (id) => invoke("picker_request", { id }),
+      pickerDone: (id, paths, typeIndex) => invoke("picker_done", { id, paths, typeIndex }),
+      pickerEnabled: () => invoke("picker_enabled"),
+      setPicker: (enable) => invoke("set_picker", { enable }),
+      version: () => (T.app && T.app.getVersion ? T.app.getVersion() : Promise.resolve("")),
       async transfer(mode, sources, dest, onProgress) {
         let resolve;
         const done = new Promise((r) => (resolve = r));
@@ -130,6 +138,14 @@
     async setAutoUpdate() {},
     async checkUpdates() {},
     onUpdate() {},
+    async icons() { return {}; },
+    async pathKind(path) { const l = F.list(path); if (l) return "dir"; const p = path.slice(0, path.lastIndexOf("\\")); return (F.list(p) || []).some((e) => e.path === path) ? "file" : "none"; },
+    pickerId: null,
+    async pickerRequest() { return null; },
+    async pickerDone() {},
+    async pickerEnabled() { return false; },
+    async setPicker() { throw new Error("Install the Slate app on Windows to use this."); },
+    async version() { return "preview"; },
     async transfer(mode, sources, dest, onProgress) {
       const items = sources.map((p) => ({ p, e: (F.list(p.slice(0, p.lastIndexOf("\\"))) || []).find((x) => x.path === p) })).filter((x) => x.e);
       const total = items.reduce((a, x) => a + (x.e.dir ? F.size(x.p) : x.e.size), 0);

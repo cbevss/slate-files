@@ -13,6 +13,41 @@
   await FSX.init();
   document.documentElement.dataset.platform = FSX.platform;
 
+  /* ---------- preferences (UI side; Rust keeps its own for updates, defaults, dialogs) ---------- */
+  const PREFS = { startIn: "last", exts: true, foldersFirst: true, singleClick: false, icons: "system", density: "comfortable", confirmTrash: false, motion: "full", dates: "relative" };
+  const pref = (k) => store.get("pref." + k, PREFS[k]);
+  function applyPrefs() {
+    const d = document.documentElement.dataset;
+    d.density = pref("density");
+    d.motion = pref("motion");
+  }
+  applyPrefs();
+
+  /* ---------- picker mode: this window is another app's Open / Save dialog ---------- */
+  const PICK = FSX.pickerId;
+  let REQ = null, pickType = 1;
+  if (PICK) {
+    REQ = await FSX.pickerRequest(PICK).catch(() => null);
+    if (!REQ) { await FSX.pickerDone(PICK, [], null).catch(() => {}); return; }
+    REQ.filters = REQ.filters || [];
+    pickType = Math.min(Math.max(1, REQ.type_index || 1), Math.max(1, REQ.filters.length));
+    document.documentElement.classList.add("picking");
+  }
+  const globRe = (g) => new RegExp("^" + g.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".") + "$", "i");
+  function pickPatterns() {
+    const f = REQ && REQ.filters[pickType - 1];
+    if (!f) return null;
+    const pats = f.spec.split(";").map((s) => s.trim()).filter(Boolean);
+    return pats.some((p) => p === "*" || p === "*.*") ? null : pats.map(globRe);
+  }
+  // in a picker, show folders and the files the chosen type allows
+  function pickVisible(e) {
+    if (!PICK || e.dir || e.drive) return true;
+    if (REQ.mode === "folder") return false;
+    const pats = pickPatterns();
+    return !pats || pats.some((r) => r.test(e.name));
+  }
+
   /* ---------- formatting ---------- */
   const UNITS = ["B", "KB", "MB", "GB", "TB"];
   function fmtSize(b) {
@@ -28,6 +63,7 @@
     const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
     const diff = Math.round((day(n) - day(d)) / 864e5);
+    if (pref("dates") === "full") return `${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()} ${hm}`;
     if (diff === 0) return `Today ${hm}`;
     if (diff === 1) return `Yesterday ${hm}`;
     return `${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`;
@@ -50,6 +86,46 @@
     if (e.dir) return { label: "Folder", icon: "folder" };
     const k = KINDS[ext(e.name)];
     return k ? { label: k[0], icon: k[1] } : { label: ext(e.name) ? ext(e.name).toUpperCase() + " file" : "File", icon: "file" };
+  }
+  // like Explorer, "hide extensions" only hides them for types it knows
+  function shownName(e) {
+    if (e.dir || e.drive || pref("exts")) return e.name;
+    const x = ext(e.name);
+    return x && KINDS[x] ? e.name.slice(0, -(x.length + 1)) : e.name;
+  }
+
+  /* ---------- system icons (Windows) ---------- */
+  const iconCache = new Map(); // key -> data URI, or null while loading / unavailable
+  const PER_PATH = new Set(["exe", "lnk", "ico", "url", "scr", "cpl", "msc", "cur", "ani", "appref-ms"]);
+  const sysIcons = () => FSX.real && FSX.platform === "windows" && pref("icons") === "system";
+  function iconKey(e) {
+    if (e.drive) return e.path;
+    if (e.dir) return FSX.places().some((p) => p.path === e.path) ? e.path : "dir:";
+    const x = ext(e.name);
+    return PER_PATH.has(x) ? e.path : "ext:" + x;
+  }
+  function fileIcon(e, big = false) {
+    if (sysIcons()) { const u = iconCache.get(iconKey(e)); if (u) return `<img class="fi${big ? " big" : ""}" src="${u}" alt="">`; }
+    return icon(kind(e).icon, e.dir && !big ? "i dir" : "i");
+  }
+  const iconWant = new Set();
+  let iconTimer = null;
+  function wantIcons(list) {
+    if (!sysIcons()) return;
+    list.forEach((e) => { const k = iconKey(e); if (!iconCache.has(k)) iconWant.add(k); });
+    if (iconWant.size && !iconTimer) iconTimer = setTimeout(flushIcons, 0);
+  }
+  async function flushIcons() {
+    iconTimer = null;
+    const keys = [...iconWant].slice(0, 96);
+    keys.forEach((k) => { iconWant.delete(k); iconCache.set(k, null); });
+    const got = await FSX.icons(keys).catch(() => ({}));
+    Object.entries(got).forEach(([k, u]) => iconCache.set(k, u));
+    document.querySelectorAll(".row[data-ik]").forEach((r) => {
+      const u = got[r.dataset.ik], s = r.querySelector(".nm svg");
+      if (u && s) { const img = new Image(); img.className = "fi"; img.alt = ""; img.src = u; s.replaceWith(img); }
+    });
+    if (iconWant.size) iconTimer = setTimeout(flushIcons, 0);
   }
 
   /* ---------- paths (Windows "C:\a\b" or Linux "/a/b"; "" is This PC) ---------- */
@@ -85,15 +161,24 @@
   /* ---------- state ---------- */
   let uid = 0;
   const HOME = FSX.home();
-  const newPane = (path) => ({ path, back: [], fwd: [], sel: new Set(), cursor: null, anchor: null, sort: { key: "name", dir: 1 } });
+  const newPane = (path) => ({ path, back: [], fwd: [], sel: new Set(), cursor: null, anchor: null, sort: { key: "name", dir: 1 }, filters: {} });
   const newTab = (path, pathB) => ({ id: ++uid, panes: [newPane(path), newPane(pathB || path)] });
   const firstPlace = (label) => (FSX.places().find((p) => p.label === label) || {}).path;
   const savedTabs = store.get("tabs", null);
+  function startTabs() {
+    if (PICK) return [REQ.folder || store.get("pickerLast", null) || firstPlace("Documents") || HOME];
+    const s = pref("startIn");
+    if (s === "home") return [HOME];
+    if (s === "thispc") return [""];
+    if (s === "downloads") return [firstPlace("Downloads") || HOME];
+    return savedTabs && savedTabs.length ? savedTabs : [firstPlace("Downloads") || HOME];
+  }
+  const LAYOUT_KEY = PICK ? "pickerLayout" : "layout";
   const S = {
-    tabs: (savedTabs && savedTabs.length ? savedTabs : [firstPlace("Downloads") || HOME]).map((p) => newTab(p, FSX.real ? HOME : "E:\\Backups")),
+    tabs: startTabs().map((p) => newTab(p, FSX.real ? HOME : "E:\\Backups")),
     tab: 0,
     pane: 0,
-    layout: store.get("layout", "preview"),
+    layout: store.get(LAYOUT_KEY, PICK ? "single" : "preview"),
     side: store.get("side", 236),
     prev: store.get("prev", 340),
     clip: null,
@@ -103,14 +188,49 @@
   const tab = () => S.tabs[S.tab];
   const pane = (i = S.pane) => tab().panes[i];
   const visiblePanes = () => (S.layout === "dual" ? [0, 1] : [0]);
-  const saveTabs = () => store.set("tabs", S.tabs.map((t) => t.panes[0].path));
+  const saveTabs = () => { if (!PICK) store.set("tabs", S.tabs.map((t) => t.panes[0].path)); };
+
+  /* ---------- column filters (like Explorer's column header dropdowns) ---------- */
+  const FCOLS = ["name", "mtime", "type", "size"];
+  const SIZES = [["Empty (0 KB)", 0, 1], ["Tiny (0 – 16 KB)", 1, 16384], ["Small (16 KB – 1 MB)", 16384, 1048576], ["Medium (1 – 128 MB)", 1048576, 134217728], ["Large (128 MB – 1 GB)", 134217728, 1073741824], ["Huge (1 – 4 GB)", 1073741824, 4294967296], ["Gigantic (over 4 GB)", 4294967296, Infinity]];
+  const DATES = ["Today", "Yesterday", "Earlier this week", "Last week", "Earlier this month", "Last month", "Earlier this year", "A long time ago", "No date"];
+  const NAMES = ["0 – 9", "A – H", "I – P", "Q – Z", "Other"];
+  function dateBucket(ms) {
+    if (!ms) return "No date";
+    const n = new Date(), d = new Date(ms);
+    const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const today = day(n), dd = day(d), diff = Math.round((today - dd) / 864e5);
+    if (diff <= 0) return "Today";
+    if (diff === 1) return "Yesterday";
+    const weekStart = today - ((n.getDay() + 6) % 7) * 864e5; // weeks start on Monday
+    if (dd >= weekStart) return "Earlier this week";
+    if (dd >= weekStart - 7 * 864e5) return "Last week";
+    if (d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth()) return "Earlier this month";
+    if (d >= new Date(n.getFullYear(), n.getMonth() - 1, 1)) return "Last month";
+    if (d.getFullYear() === n.getFullYear()) return "Earlier this year";
+    return "A long time ago";
+  }
+  function bucket(col, e) {
+    if (col === "type") return kind(e).label;
+    if (col === "mtime") return dateBucket(e.mtime);
+    if (col === "size") { if (e.dir) return "Folders"; const s = e.size || 0; return SIZES.find((b) => s >= b[1] && s < b[2])[0]; }
+    const c = (e.name[0] || "").toUpperCase();
+    return /[0-9]/.test(c) ? NAMES[0] : /[A-H]/.test(c) ? NAMES[1] : /[I-P]/.test(c) ? NAMES[2] : /[Q-Z]/.test(c) ? NAMES[3] : NAMES[4];
+  }
+  const bucketOrder = (col, list) => col === "mtime" ? DATES : col === "name" ? NAMES : col === "size" ? ["Folders", ...SIZES.map((s) => s[0])] : [...new Set(list)].sort((a, b) => a.localeCompare(b));
+  const filterOn = (p) => FCOLS.some((c) => p.filters[c] && p.filters[c].size) || !!p.filters.text;
+  // everything the folder would show before column filters
+  const baseList = (p) => (cache.get(p.path) || []).filter((e) => (showHidden || !e.hidden) && pickVisible(e));
 
   function entries(p) {
-    const list = (cache.get(p.path) || []).filter((e) => showHidden || !e.hidden);
+    const f = p.filters;
+    const text = (f.text || "").toLowerCase();
+    const list = baseList(p).filter((e) => FCOLS.every((c) => !f[c] || !f[c].size || f[c].has(bucket(c, e))) && (!text || e.name.toLowerCase().includes(text)));
     const { key, dir } = p.sort;
+    const firstFolders = pref("foldersFirst");
     const val = (e) => key === "size" ? (e.dir ? sizes.get(e.path) ?? -1 : e.size) : key === "mtime" ? e.mtime || 0 : key === "type" ? kind(e).label : e.name.toLowerCase();
     return list.slice().sort((a, b) => {
-      if (a.dir !== b.dir) return a.dir ? -1 : 1;
+      if (firstFolders && a.dir !== b.dir) return a.dir ? -1 : 1;
       const x = val(a), y = val(b);
       return (x < y ? -1 : x > y ? 1 : a.name.localeCompare(b.name, undefined, { numeric: true })) * dir;
     });
@@ -198,7 +318,7 @@
   }
   // Signature move: panels glide to their new places. Transform + clip-path only;
   // content snaps to its final layout, so large folders never re-lay out per frame.
-  const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reduceMotion = () => pref("motion") === "reduced" || matchMedia("(prefers-reduced-motion: reduce)").matches;
   async function setLayout(l) {
     if (l === S.layout) return;
     if (l === "dual") await load(pane(1).path).catch(() => { pane(1).path = HOME; return load(HOME); });
@@ -212,7 +332,7 @@
       Object.assign(g.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
       return g;
     });
-    S.layout = l; store.set("layout", l);
+    S.layout = l; store.set(LAYOUT_KEY, l);
     applyLayout();
     renderAll(l === "dual");
     if (reduceMotion()) return;
@@ -281,9 +401,19 @@
     const old = box.querySelector(".list");
     const prevScroll = old ? old.scrollTop : 0;
     let h = `<div class="panehead">${icon(p.path === "" ? "pc" : "folder")}<b>${esc(baseOf(p.path))}</b><span class="num" style="margin-left:auto">${plural(list.length, "item")}</span></div>`;
-    h += `<div class="cols">${COLS.map(([k, label, cls]) => `<div class="${cls}"><button data-sort="${k}"${p.sort.key === k ? ` aria-sort="${p.sort.dir > 0 ? "ascending" : "descending"}"` : ""}>${label}${p.sort.key === k ? icon("sort") : ""}</button></div>`).join("")}</div>`;
+    const fOn = (k) => (k === "name" ? (p.filters.name && p.filters.name.size) || p.filters.text : p.filters[k] && p.filters[k].size);
+    h += `<div class="cols">${COLS.map(([k, label, cls]) => `<div class="${cls}"><button data-sort="${k}"${p.sort.key === k ? ` aria-sort="${p.sort.dir > 0 ? "ascending" : "descending"}"` : ""}>${label}${p.sort.key === k ? icon("up") : ""}</button><button class="fbtn${fOn(k) ? " on" : ""}" data-filter="${k}" aria-label="Filter by ${label.toLowerCase()}" aria-haspopup="menu" title="Filter by ${label.toLowerCase()}">${icon(fOn(k) ? "filter" : "sort")}</button></div>`).join("")}</div>`;
+    if (filterOn(p)) {
+      const names = { name: "Name", mtime: "Modified", type: "Type", size: "Size" };
+      const chips = [];
+      if (p.filters.text) chips.push(["text", `Name contains “${esc(p.filters.text)}”`]);
+      FCOLS.forEach((c) => { const s = p.filters[c]; if (s && s.size) chips.push([c, `${names[c]}: ${[...s].map(esc).join(", ")}`]); });
+      h += `<div class="fstrip">${icon("filter")}${chips.map(([c, t]) => `<button class="chip" data-unfilter="${c}" title="Remove this filter"><span>${t}</span>${icon("x")}</button>`).join("")}<span class="num fcount">${list.length.toLocaleString()} of ${baseList(p).length.toLocaleString()}</span><button class="link" data-unfilter="all">Clear filters</button></div>`;
+    }
     h += `<div class="list" tabindex="0" role="listbox" aria-multiselectable="true" aria-label="${esc(baseOf(p.path))}">`;
-    if (!list.length) h += `<div class="empty"><div><b>This folder is empty</b>Drop files here, or press Ctrl+Shift+N to make a new folder.</div></div>`;
+    if (!list.length) h += filterOn(p)
+      ? `<div class="empty"><div><b>Nothing matches these filters</b>${plural(baseList(p).length, "item")} here are hidden by the filters above.</div></div>`
+      : `<div class="empty"><div><b>This folder is empty</b>${PICK ? "Choose another folder." : "Drop files here, or press Ctrl+Shift+N to make a new folder."}</div></div>`;
     // render in one string; rows beyond the first screen skip the entrance animation
     const rows = [];
     for (let n = 0; n < list.length; n++) {
@@ -292,7 +422,7 @@
       const cut = S.clip && S.clip.mode === "cut" && S.clip.paths.includes(e.path);
       const sz = e.drive ? `${fmtSize(e.drive.free)} free` : e.dir ? (sizes.has(e.path) ? fmtSize(sizes.get(e.path)) : e.items != null ? plural(e.items, "item") : "") : fmtSize(e.size);
       const anim = animateRows && n < 24;
-      rows.push(`<div class="row${anim ? " enter" : ""}${p.cursor === e.path ? " cursor" : ""}${cut ? " cut" : ""}${e.hidden ? " hid" : ""}" role="option" aria-selected="${sel}" draggable="true" data-path="${esc(e.path)}"${anim ? ` style="animation-delay:${n * 12}ms"` : ""}><div class="nm">${icon(k.icon, e.dir ? "i dir" : "i")}<span>${esc(e.name)}</span></div><span class="sub c-mod num">${fmtDate(e.mtime)}</span><span class="sub c-type">${k.label}</span><span class="sub r num">${sz}</span></div>`);
+      rows.push(`<div class="row${anim ? " enter" : ""}${p.cursor === e.path ? " cursor" : ""}${cut ? " cut" : ""}${e.hidden ? " hid" : ""}" role="option" aria-selected="${sel}" draggable="true" data-path="${esc(e.path)}"${anim ? ` style="animation-delay:${n * 12}ms"` : ""}${sysIcons() ? ` data-ik="${esc(iconKey(e))}"` : ""}><div class="nm">${fileIcon(e)}<span>${esc(shownName(e))}</span></div><span class="sub c-mod num">${fmtDate(e.mtime)}</span><span class="sub c-type">${k.label}</span><span class="sub r num">${sz}</span></div>`);
     }
     h += rows.join("") + `</div>`;
     box.innerHTML = h;
@@ -303,8 +433,25 @@
       p.sort = p.sort.key === k ? { key: k, dir: -p.sort.dir } : { key: k, dir: k === "name" || k === "type" ? 1 : -1 };
       renderPane(i);
     }));
+    box.querySelectorAll("[data-filter]").forEach((b) => (b.onclick = (ev) => { ev.stopPropagation(); showFilterMenu(b, b.dataset.filter, i); }));
+    box.querySelectorAll("[data-unfilter]").forEach((b) => (b.onclick = () => {
+      const c = b.dataset.unfilter;
+      if (c === "all") p.filters = {}; else if (c === "text") p.filters.text = ""; else delete p.filters[c];
+      renderPane(i); renderChrome();
+    }));
+    wantIcons(list);
     lst.addEventListener("mousedown", (ev) => onRowDown(ev, i));
-    lst.addEventListener("dblclick", (ev) => { const r = ev.target.closest(".row"); if (r) open(i, r.dataset.path); });
+    lst.addEventListener("dblclick", (ev) => { const r = ev.target.closest(".row"); if (r && !pref("singleClick")) open(i, r.dataset.path); });
+    lst.addEventListener("click", (ev) => {
+      if (!pref("singleClick") || ev.ctrlKey || ev.shiftKey || ev.metaKey || dragging) return;
+      const r = ev.target.closest(".row"); if (r && !r.classList.contains("renaming")) open(i, r.dataset.path);
+    });
+    lst.addEventListener("auxclick", (ev) => {
+      // middle-click a folder: open it in a new tab
+      const r = ev.target.closest(".row"); if (ev.button !== 1 || !r || PICK) return;
+      const e = rowsOf(i).find((x) => x.path === r.dataset.path);
+      if (e && e.dir) { ev.preventDefault(); addTab(e.path); }
+    });
     lst.addEventListener("contextmenu", (ev) => onContext(ev, i));
     lst.addEventListener("focus", () => { if (S.pane !== i) { S.pane = i; renderChrome(); markFocus(); } });
     lst.addEventListener("dragstart", (ev) => onDragStart(ev, i));
@@ -317,6 +464,47 @@
     });
   }
   function markFocus() { [0, 1].forEach((i) => paneBox(i).classList.toggle("focused", S.layout === "dual" && S.pane === i)); }
+
+  // the dropdown on a column header: tick values to show only those items
+  function showFilterMenu(anchor, col, i) {
+    const m = $("#fmenu"), p = pane(i), key = `${i}:${col}`;
+    if (!m.hidden && m.dataset.for === key) { m.hidden = true; return; }
+    m.dataset.for = key;
+    const draw = () => {
+      const all = baseList(p);
+      const counts = new Map();
+      all.forEach((e) => { const b = bucket(col, e); counts.set(b, (counts.get(b) || 0) + 1); });
+      const set = p.filters[col] || new Set();
+      const order = bucketOrder(col, [...counts.keys()]).filter((b) => counts.has(b) || set.has(b));
+      let h = col === "name" ? `<div class="ftext">${icon("search")}<input id="f-text" placeholder="Name contains" value="${esc(p.filters.text || "")}" spellcheck="false" autocomplete="off"></div>` : "";
+      h += order.length ? order.map((b) => `<button role="menuitemcheckbox" aria-checked="${set.has(b)}" data-b="${esc(b)}"><span class="cb">${icon("check")}</span><span class="bl">${esc(b)}</span><kbd class="num">${(counts.get(b) || 0).toLocaleString()}</kbd></button>`).join("")
+        : `<p class="none">Nothing to filter in this folder</p>`;
+      h += `<hr><button data-clear${set.size || (col === "name" && p.filters.text) ? "" : " disabled"}>${icon("x")}Clear this filter</button>`;
+      m.innerHTML = h;
+      m.querySelectorAll("[data-b]").forEach((b) => (b.onclick = () => {
+        const s = p.filters[col] || (p.filters[col] = new Set());
+        s.has(b.dataset.b) ? s.delete(b.dataset.b) : s.add(b.dataset.b);
+        if (!s.size) delete p.filters[col];
+        renderPane(i); renderChrome(); draw();
+        const again = m.querySelector(`[data-b="${CSS.escape(b.dataset.b)}"]`); if (again) again.focus();
+      }));
+      m.querySelector("[data-clear]").onclick = () => { delete p.filters[col]; if (col === "name") p.filters.text = ""; renderPane(i); renderChrome(); m.hidden = true; focusList(i); };
+      const t = m.querySelector("#f-text");
+      if (t) {
+        t.oninput = () => { p.filters.text = t.value; renderPane(i); renderChrome(); };
+        t.onkeydown = (e) => { e.stopPropagation(); if (e.key === "Escape" || e.key === "Enter") { m.hidden = true; focusList(i); } };
+      }
+    };
+    draw();
+    m.hidden = false;
+    const r = anchor.getBoundingClientRect();
+    const w = m.offsetWidth;
+    m.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + "px";
+    m.style.top = Math.min(r.bottom + 6, innerHeight - m.offsetHeight - 8) + "px";
+    const first = m.querySelector("#f-text") || m.querySelector("button:not([disabled])");
+    if (first) first.focus();
+  }
+  document.addEventListener("mousedown", (e) => { if (!e.target.closest("#fmenu") && !e.target.closest("[data-filter]")) $("#fmenu").hidden = true; });
   const rowsOf = (i) => entries(pane(i));
   const rowEl = (i, path) => paneBox(i).querySelector(`.row[data-path="${CSS.escape(path)}"]`);
 
@@ -352,6 +540,7 @@
       r.setAttribute("aria-selected", p.sel.has(r.dataset.path));
       r.classList.toggle("cursor", p.cursor === r.dataset.path);
     });
+    if (PICK) p_sync(i);
     renderChrome();
   }
 
@@ -399,7 +588,8 @@
     catch (e) { toast(err(e)); return; }
     if (push) { p.back.push(p.path); p.fwd = []; }
     const from = p.path;
-    p.path = path; p.sel.clear(); p.anchor = null; p.cursor = null;
+    p.path = path; p.sel.clear(); p.anchor = null; p.cursor = null; p.filters = {};
+    $("#fmenu").hidden = true;
     // returning to a parent re-selects the folder you came from
     if (from && (path === "" ? true : from.startsWith(path))) {
       const hit = (cache.get(path) || []).find((e) => from === e.path || from.startsWith(child(e.path, "")));
@@ -417,6 +607,7 @@
     const e = rowsOf(i).find((x) => x.path === path);
     if (!e) return;
     if (e.dir) go(i, e.path);
+    else if (PICK) { p_sync(i); pickConfirm(); }
     else if (FSX.real) FSX.open(e.path).catch((x) => toast(err(x)));
     else toast(`Opening ${e.name} with its default app`);
   }
@@ -469,7 +660,7 @@
       const rows = e.drive
         ? `<dt>Free</dt><dd>${fmtSize(e.drive.free)}</dd><dt>Capacity</dt><dd>${fmtSize(e.drive.total)}</dd>`
         : `<dt>Modified</dt><dd>${fmtDate(e.mtime)}</dd>${e.dir ? `<dt>Contains</dt><dd id="pv-count">…</dd>` : `<dt>Type</dt><dd>${k.label}${ext(e.name) ? ` (.${esc(ext(e.name))})` : ""}</dd>`}<dt>Location</dt><dd style="word-break:normal">${loc}</dd>${!e.dir && HASHABLE.has(ext(e.name)) ? `<dt>SHA-256</dt><dd id="hash"><button class="link" data-act="hash">Calculate</button></dd>` : ""}`;
-      box.innerHTML = `<div class="art">${icon(k.icon)}${e.dir || e.drive ? "" : `<span class="ext">${esc(ext(e.name).toUpperCase())}</span>`}</div>
+      box.innerHTML = `<div class="art">${fileIcon(e, true)}${e.dir || e.drive ? "" : `<span class="ext">${esc(ext(e.name).toUpperCase())}</span>`}</div>
         <h3>${esc(e.name)}</h3><div class="meta num"><span id="pv-size">${sz}</span> · ${k.label}</div>
         <dl class="kv num">${rows}</dl>
         <div class="acts"><button class="btn primary" data-act="open">${icon("open")}Open</button>${e.drive ? "" : `<button class="btn" data-act="copyto">Copy to…</button><button class="btn" data-act="moveto">Move to…</button>`}</div>`;
@@ -495,8 +686,9 @@
   /* ---------- status ---------- */
   function renderStatus() {
     const list = rowsOf(S.pane), sel = selected();
-    const hidden = (cache.get(pane().path) || []).length - list.length;
-    $("#st-count").textContent = plural(list.length, "item") + (hidden > 0 ? ` (${hidden} hidden)` : "");
+    const hidden = showHidden ? 0 : (cache.get(pane().path) || []).filter((e) => e.hidden).length;
+    const filtered = baseList(pane()).length - list.length;
+    $("#st-count").textContent = plural(list.length, "item") + (filtered > 0 ? ` · ${filtered.toLocaleString()} filtered out` : "") + (hidden > 0 ? ` · ${hidden} hidden` : "");
     if (sel.length) {
       const total = sel.reduce((a, e) => a + (e.dir ? 0 : e.size || 0), 0);
       $("#st-sel").textContent = `${sel.length.toLocaleString()} selected${total ? " · " + fmtSize(total) : ""}`;
@@ -544,8 +736,16 @@
     }
   }
 
-  async function del(i, sel) {
+  async function del(i, sel, confirmed = false) {
     if (!sel.length || pane(i).path === "") return;
+    if (pref("confirmTrash") && !confirmed) {
+      return modal({
+        title: `Move ${sel.length === 1 ? sel[0].name : plural(sel.length, "item")} to the ${WIN ? "Recycle Bin" : "Trash"}?`,
+        sub: "You can undo this with Ctrl+Z, or restore from the " + (WIN ? "Recycle Bin." : "Trash."),
+        ok: "Move to " + (WIN ? "Recycle Bin" : "Trash"),
+        onOk: () => del(i, sel, true),
+      });
+    }
     const paths = sel.map((e) => e.path);
     try { await FSX.trash(paths); }
     catch (e) { return toast(err(e)); }
@@ -811,6 +1011,7 @@
     ["New folder", () => act("newfolder"), "newfolder", "Ctrl+Shift+N"], ["Undo", () => undo(), "back", "Ctrl+Z"],
     ["Show or hide hidden files", () => toggleHidden(), "info", "Ctrl+H"], ["Calculate folder sizes", () => act("sizes"), "drive", ""],
     ["Find duplicate files in this folder", () => act("dupes"), "copy", ""], ["Rebuild the search index", () => { FSX.reindex(); toast("Rebuilding the search index in the background"); }, "search", ""],
+    ["Settings", () => openSettings(), "gear", "Ctrl+,"],
     ["Check for updates", () => FSX.checkUpdates(false), "download", ""],
     ["Turn automatic updates on or off", () => toggleAutoUpdate(), "download", ""],
     ["Make Slate the default file explorer", () => setDefault(true), "star", ""],
@@ -894,18 +1095,218 @@
     else if (s.state === "available") { updateToast(`Slate ${v} is available`, "Download", () => { FSX.open(s.message); endUpdateToast(0); }); endUpdateToast(12000); }
     else if (s.state === "error") { updateToast(s.message || "The update didn't work."); endUpdateToast(7000); }
   });
-  function setDefault(enable) {
+  function setDefault(enable, after = () => {}) {
     const what = WIN ? "Windows Explorer" : "your previous file manager";
-    if (!enable) return FSX.setDefault(false).then(() => toast(`${what[0].toUpperCase() + what.slice(1)} is the default again`), (e) => toast(err(e)));
+    if (!enable) return FSX.setDefault(false).then(() => toast(`${what[0].toUpperCase() + what.slice(1)} is the default again`), (e) => toast(err(e))).then(after);
     modal({
       title: "Make Slate your default file explorer?",
       sub: WIN
         ? "Double-clicking folders and drives, and pressing Win+E, will open Slate. This only changes settings for your user account."
         : "Folders opened from your desktop and other apps will open in Slate instead of Dolphin.",
-      body: `<p class="fine">You can switch back any time: press Ctrl+K and choose “Restore ${WIN ? "Windows Explorer" : "the previous file manager"} as default”.</p>`,
+      body: `<p class="fine">You can switch back any time in Settings, or press Ctrl+K and choose “Restore ${WIN ? "Windows Explorer" : "the previous file manager"} as default”.</p>`,
       ok: "Make default",
-      onOk: () => FSX.setDefault(true).then(() => toast("Slate is now your default file explorer"), (e) => toast(err(e))),
+      onOk: () => FSX.setDefault(true).then(() => toast("Slate is now your default file explorer"), (e) => toast(err(e))).then(after),
+      onCancel: after,
     });
+  }
+
+  /* ---------- settings ---------- */
+  const UNDO_PICKER = ["{DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7}", "{C0B4E2F3-BA21-4773-8DBA-335EC946EB8B}"]
+    .flatMap((c) => [`reg delete "HKCU\\Software\\Classes\\CLSID\\${c}" /f`, `reg delete "HKCU\\Software\\Classes\\WOW6432Node\\CLSID\\${c}" /f`]).join("; ");
+  function confirmPicker() {
+    modal({
+      wide: true,
+      title: "Replace the Windows Open and Save dialogs?",
+      sub: "This is experimental. Read this before you turn it on.",
+      body: `<ul class="risks">
+        <li>${icon("warn")}<span><b>Other apps could crash or fail to save.</b> Every app's Open and Save goes through Slate. A bug here affects all of them, possibly while you are saving your work.</span></li>
+        <li>${icon("warn")}<span><b>Antivirus may flag or block it.</b> Norton, Defender and others watch this part of Windows closely, because malware uses it too.</span></li>
+        <li>${icon("info")}<span>Apps running as administrator, Microsoft Store apps and some older apps keep the Windows dialog. So do apps that add their own options to it, like Notepad's encoding choice.</span></li>
+        <li>${icon("info")}<span>Hold <kbd>Shift</kbd> while a dialog opens to get the Windows one. Turn this off here any time.</span></li>
+      </ul>
+      <p class="fine">If Slate ever stops opening, paste this into PowerShell to put the Windows dialogs back:</p>
+      <div class="cmd"><code>${esc(UNDO_PICKER)}</code><button class="btn" id="copy-cmd">Copy</button></div>
+      <label class="ack"><input type="checkbox" id="ack"><span>I understand the risks</span></label>`,
+      ok: "Turn it on",
+      onOk: async () => {
+        try { await FSX.setPicker(true); toast("Other apps now open Slate for Open and Save. Hold Shift for the Windows dialog."); }
+        catch (e) { toast(err(e)); }
+        renderSettings();
+      },
+      onCancel: () => renderSettings(),
+      onOpen: () => {
+        $("#dlg-ok").disabled = true;
+        $("#ack").onchange = () => { $("#dlg-ok").disabled = !$("#ack").checked; };
+        $("#copy-cmd").onclick = () => navigator.clipboard.writeText(UNDO_PICKER).then(() => toast("Command copied"), () => toast("Couldn't copy to the clipboard"));
+        $("#ack").focus();
+      },
+    });
+  }
+  async function openSettings() {
+    if (PICK) return;
+    openScrim("#set-scrim");
+    await renderSettings();
+    $("#set-close").focus();
+  }
+  async function renderSettings() {
+    const [isDef, auto, picker, ver, idx] = await Promise.all([
+      FSX.defaultStatus().catch(() => false), FSX.autoUpdate().catch(() => false), FSX.pickerEnabled().catch(() => false),
+      FSX.version().catch(() => ""), FSX.indexStatus().catch(() => null),
+    ]);
+    const row = (title, desc, control, cls = "") => `<div class="srow${cls}"><div class="st"><b>${title}</b>${desc ? `<p>${desc}</p>` : ""}</div><div class="sc">${control}</div></div>`;
+    const sw = (id, on, label, off = false) => `<button class="switch" role="switch" aria-checked="${!!on}" aria-label="${esc(label)}" data-set="${id}"${off ? " disabled" : ""}><i></i></button>`;
+    const seg = (id, val, label, opts) => `<div class="sseg" role="radiogroup" aria-label="${esc(label)}" data-set="${id}">${opts.map(([v, l]) => `<button role="radio" aria-checked="${v === val}" data-v="${v}">${l}</button>`).join("")}</div>`;
+    const sel = (id, val, label, opts) => `<select class="ssel" aria-label="${esc(label)}" data-set="${id}">${opts.map(([v, l]) => `<option value="${v}"${v === val ? " selected" : ""}>${l}</option>`).join("")}</select>`;
+    const bin = WIN ? "Recycle Bin" : "Trash";
+    let h = `<section><h3>General</h3>`;
+    h += row("Default file explorer", WIN ? "Open folders, drives and Win+E in Slate instead of Windows Explorer." : "Open folders from your desktop and other apps in Slate.", sw("default", isDef, "Default file explorer", !FSX.real));
+    if (WIN) h += row(`Use Slate for Open and Save dialogs <span class="tag">${icon("warn")}Experimental</span>`,
+      `Browse, Open and Save buttons in other apps show Slate instead of the Windows dialog. <strong>This can make other apps crash or fail to save.</strong> Hold Shift as a dialog opens to get the Windows one.`,
+      sw("picker", picker, "Use Slate for Open and Save dialogs", !FSX.real), picker ? " risky on" : " risky");
+    h += row("Update automatically", "Install new versions when Slate starts.", sw("auto", auto, "Update automatically", !FSX.real));
+    h += row("Version", ver ? `Slate ${esc(ver)}` : "", `<button class="btn" data-run="check">Check for updates</button>`);
+    h += `</section><section><h3>Browsing</h3>`;
+    h += row("When Slate opens", "", sel("startIn", pref("startIn"), "When Slate opens", [["last", "Reopen my last tabs"], ["home", "Home folder"], ["downloads", "Downloads"], ["thispc", "This PC"]]));
+    h += row("Open items with", "", seg("singleClick", pref("singleClick") ? "1" : "0", "Open items with", [["0", "Double-click"], ["1", "Single click"]]));
+    h += row("Show hidden files", "Also Ctrl+H.", sw("hidden", showHidden, "Show hidden files"));
+    h += row("Show file extensions", "When off, extensions of common file types are hidden, as in Explorer.", sw("exts", pref("exts"), "Show file extensions"));
+    h += row("Keep folders above files", "Whichever column you sort by.", sw("foldersFirst", pref("foldersFirst"), "Keep folders above files"));
+    h += row(`Ask before moving to the ${bin}`, "Deleting can always be undone with Ctrl+Z.", sw("confirmTrash", pref("confirmTrash"), `Ask before moving to the ${bin}`));
+    h += `</section><section><h3>Appearance</h3>`;
+    if (WIN) h += row("File icons", "", seg("icons", pref("icons"), "File icons", [["system", "Windows icons"], ["slate", "Slate icons"]]));
+    h += row("Row spacing", "", seg("density", pref("density"), "Row spacing", [["comfortable", "Comfortable"], ["compact", "Compact"]]));
+    h += row("Dates", "", seg("dates", pref("dates"), "Dates", [["relative", "Today, Yesterday"], ["full", "Full date"]]));
+    h += row("Animations", "", seg("motion", pref("motion"), "Animations", [["full", "On"], ["reduced", "Reduced"]]));
+    h += `</section><section><h3>Search</h3>`;
+    h += row("Search index", idx ? (idx.building ? `Indexing… ${idx.count.toLocaleString()} so far` : `${idx.count.toLocaleString()} items. Refreshes every 10 minutes.`) : "", `<button class="btn" data-run="reindex">Rebuild now</button>`);
+    h += `</section><p class="set-foot">Press <kbd>Ctrl</kbd> <kbd>,</kbd> to open settings, or <kbd>Ctrl</kbd> <kbd>K</kbd> for every action.</p>`;
+    const body = $("#set-body"), top = body.scrollTop;
+    body.innerHTML = h;
+    body.scrollTop = top;
+    body.querySelectorAll(".switch").forEach((b) => (b.onclick = () => setSetting(b.dataset.set, b.getAttribute("aria-checked") !== "true", b)));
+    body.querySelectorAll(".sseg").forEach((g) => g.querySelectorAll("button").forEach((b) => (b.onclick = () => setSetting(g.dataset.set, b.dataset.v, b))));
+    body.querySelectorAll(".ssel").forEach((s) => (s.onchange = () => setSetting(s.dataset.set, s.value, s)));
+    body.querySelectorAll("[data-run]").forEach((b) => (b.onclick = () => {
+      if (b.dataset.run === "check") FSX.checkUpdates(false);
+      else { FSX.reindex(); toast("Rebuilding the search index in the background"); setTimeout(renderSettings, 600); }
+    }));
+  }
+  async function setSetting(id, v, from) {
+    const refocus = () => { const b = $(`#set-body [data-set="${id}"]`); if (b) (b.matches(".sseg") ? b.querySelector('[aria-checked="true"]') : b).focus(); };
+    if (id === "default") return setDefault(v, () => renderSettings().then(refocus));
+    if (id === "picker") {
+      if (v) return confirmPicker();
+      try { await FSX.setPicker(false); toast("Other apps use the Windows Open and Save dialogs again"); } catch (e) { toast(err(e)); }
+      return renderSettings().then(refocus);
+    }
+    if (id === "auto") { try { await FSX.setAutoUpdate(v); } catch (e) { toast(err(e)); } return renderSettings().then(refocus); }
+    if (id === "hidden") { if (showHidden !== v) toggleHidden(); return renderSettings().then(refocus); }
+    store.set("pref." + id, id === "singleClick" ? v === "1" : v);
+    applyPrefs();
+    visiblePanes().forEach((i) => renderPane(i));
+    renderChrome();
+    await renderSettings();
+    refocus();
+    void from;
+  }
+
+  /* ---------- picker bar (when this window is an Open / Save dialog) ---------- */
+  const isAbs = (t) => (WIN ? /^[a-z]:([\\/]|$)/i.test(t) || t.startsWith("\\\\") : t.startsWith("/"));
+  const nameList = (files) => (files.length === 1 ? files[0].name : files.map((f) => `"${f.name}"`).join(" "));
+  async function resolveTyped(t) {
+    t = t.replace(/^"|"$/g, "");
+    let path = isAbs(t) ? (WIN ? t.replace(/\//g, "\\") : t) : child(pane().path, WIN ? t.replace(/\//g, "\\") : t);
+    if (path.length > 3) path = path.replace(/[\\/]+$/, "");
+    return { path, kind: await FSX.pathKind(path).catch(() => "none") };
+  }
+  function specExt() {
+    const f = REQ.filters[pickType - 1];
+    const m = f && /^\*\.([^*?;.]+)$/.exec(f.spec.split(";")[0].trim());
+    return m ? m[1] : null;
+  }
+  // keep the name box in step with the selection, like the Windows dialog
+  function p_sync(i) {
+    if (!PICK || i !== S.pane) return;
+    const sel = selected(i), inp = $("#pk-input");
+    if (REQ.mode === "folder") { if (sel.length === 1 && sel[0].dir) inp.value = sel[0].name; }
+    else { const files = sel.filter((e) => !e.dir); if (files.length) inp.value = REQ.mode === "save" ? files[0].name : nameList(files); }
+  }
+  async function pickFinish(paths) {
+    const where = REQ.mode === "folder" ? paths[0] : parentOf(paths[0]);
+    store.set("pickerLast", where);
+    await FSX.pickerDone(PICK, paths, pickType);
+  }
+  const pickCancel = () => FSX.pickerDone(PICK, [], null);
+  async function pickConfirm() {
+    const p = pane(), sel = selected(), typed = $("#pk-input").value.trim();
+    if (REQ.mode === "folder") {
+      if (typed && !(sel.length === 1 && sel[0].name === typed)) {
+        const r = await resolveTyped(typed);
+        if (r.kind === "dir") return pickFinish([r.path]);
+        return toast(`There's no folder called ${typed} here.`);
+      }
+      const target = sel.length === 1 && sel[0].dir ? sel[0].path : p.path;
+      if (!target) return toast("Open or select a folder first.");
+      return pickFinish([target]);
+    }
+    if (REQ.mode === "open") {
+      const files = sel.filter((e) => !e.dir);
+      if (files.length && (!typed || typed === nameList(files))) return pickFinish(REQ.multi ? files.map((e) => e.path) : [files[0].path]);
+      if (!typed && sel.length === 1 && sel[0].dir) return go(S.pane, sel[0].path);
+      if (!typed) return toast("Choose a file first.");
+      const quoted = [...typed.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+      if (quoted.length > 1 && REQ.multi) {
+        const rs = await Promise.all(quoted.map(resolveTyped));
+        if (rs.every((r) => r.kind === "file")) return pickFinish(rs.map((r) => r.path));
+        return toast(`Can't find ${quoted[rs.findIndex((r) => r.kind !== "file")]}.`);
+      }
+      const r = await resolveTyped(typed);
+      if (r.kind === "dir") { $("#pk-input").value = ""; return go(S.pane, r.path); }
+      if (r.kind === "file") return pickFinish([r.path]);
+      return toast(`Can't find ${typed}. Check the name and try again.`);
+    }
+    // save
+    if (!typed) { $("#pk-input").focus(); return toast("Type a name for the file."); }
+    if (!p.path && !isAbs(typed)) return toast("Open a folder to save into.");
+    let r = await resolveTyped(typed);
+    if (r.kind === "dir") { $("#pk-input").value = ""; return go(S.pane, r.path); }
+    if (/[<>:"|?*]/.test(nameOf(r.path))) return toast('File names can\'t contain < > : " | ? *');
+    if (!ext(nameOf(r.path)) && REQ.default_ext != null) {
+      const x = specExt() || REQ.default_ext.replace(/^\./, "");
+      if (x) r = await resolveTyped(r.path + "." + x);
+    }
+    if (r.kind === "file" && REQ.overwrite_prompt) {
+      return modal({ title: `Replace ${nameOf(r.path)}?`, sub: "A file with this name already exists here. Replacing it overwrites what's in it.", ok: "Replace", onOk: () => pickFinish([r.path]) });
+    }
+    pickFinish([r.path]);
+  }
+  function setupPicker() {
+    const verb = REQ.ok_label || (REQ.mode === "save" ? "Save" : REQ.mode === "folder" ? "Select folder" : "Open");
+    $("#pickbar").hidden = false;
+    $("#status").hidden = true;
+    $("#pk-ok").textContent = verb;
+    $("#pk-label").textContent = REQ.mode === "folder" ? "Folder" : "File name";
+    $("#pk-input").value = REQ.file_name || "";
+    $("#pk-input").placeholder = REQ.mode === "save" ? "Name the file" : REQ.mode === "folder" ? "This folder, or type a folder name" : "Choose a file, or type its name";
+    const verbTitle = REQ.title || (REQ.mode === "save" ? "Save as" : REQ.mode === "folder" ? "Choose a folder" : "Open");
+    const t = el("div", "pk-title", `<b>${esc(verbTitle)}</b>${REQ.app ? `<span>for ${esc(REQ.app)}</span>` : ""}`);
+    t.setAttribute("data-tauri-drag-region", "");
+    $(".tabrow").insertBefore(t, $("#tabs"));
+    document.title = `${verbTitle} · Slate`;
+    if (REQ.filters.length && REQ.mode !== "folder") {
+      const s = $("#pk-type");
+      s.hidden = false;
+      s.innerHTML = REQ.filters.map((f, n) => `<option value="${n + 1}">${esc(f.name)}${f.spec && !f.name.includes(f.spec) ? ` (${esc(f.spec)})` : ""}</option>`).join("");
+      s.value = String(pickType);
+      s.onchange = () => { pickType = +s.value; visiblePanes().forEach((i) => renderPane(i)); renderChrome(); };
+    }
+    $("#pk-ok").onclick = pickConfirm;
+    $("#pk-cancel").onclick = pickCancel;
+    $("#pk-input").onkeydown = (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); pickConfirm(); }
+      if (e.key === "Escape") { e.preventDefault(); pickCancel(); }
+    };
   }
   function toggleHidden() {
     showHidden = !showHidden; store.set("hidden", showHidden);
@@ -915,18 +1316,27 @@
 
   /* ---------- overlays & toasts ---------- */
   let lastFocus = null;
-  function openScrim(s) { lastFocus = document.activeElement; $(s).hidden = false; }
-  function closeScrim(s) { $(s).hidden = true; if (lastFocus && lastFocus.isConnected) lastFocus.focus(); else focusList(S.pane); }
-  ["#pal-scrim", "#dlg-scrim"].forEach((s) => $(s).addEventListener("mousedown", (e) => { if (e.target === $(s)) closeScrim(s); }));
-  function modal({ title, sub, body, ok, onOk, onOpen, cancel = true, bodyClass = "" }) {
+  let dlgCancel = null;
+  function openScrim(s) { if (s !== "#dlg-scrim" || $("#set-scrim").hidden) lastFocus = document.activeElement; $(s).hidden = false; }
+  function closeScrim(s) {
+    $(s).hidden = true;
+    if (s === "#dlg-scrim" && dlgCancel) { const c = dlgCancel; dlgCancel = null; c(); }
+    if (s === "#dlg-scrim" && !$("#set-scrim").hidden) return; // back to settings
+    if (s === "#set-scrim") $("#fmenu").hidden = true;
+    if (lastFocus && lastFocus.isConnected && lastFocus.offsetParent) lastFocus.focus(); else focusList(S.pane);
+  }
+  ["#pal-scrim", "#dlg-scrim", "#set-scrim"].forEach((s) => $(s).addEventListener("mousedown", (e) => { if (e.target === $(s)) closeScrim(s); }));
+  function modal({ title, sub, body, ok, onOk, onOpen, onCancel, cancel = true, bodyClass = "", wide = false }) {
     $("#dlg-title").textContent = title;
     $("#dlg-sub").textContent = sub || "";
     $("#dlg-body").className = bodyClass;
     $("#dlg-body").innerHTML = body || "";
+    $(".dialog").classList.toggle("wide", wide);
     $("#dlg-ok").textContent = ok; $("#dlg-ok").disabled = false;
     $("#dlg-cancel").hidden = !cancel;
+    dlgCancel = onCancel || null;
     openScrim("#dlg-scrim");
-    $("#dlg-ok").onclick = () => { if ($("#dlg-ok").disabled) return; closeScrim("#dlg-scrim"); onOk && onOk(); };
+    $("#dlg-ok").onclick = () => { if ($("#dlg-ok").disabled) return; dlgCancel = null; closeScrim("#dlg-scrim"); onOk && onOk(); };
     $("#dlg-cancel").onclick = () => closeScrim("#dlg-scrim");
     if (onOpen) onOpen(); else $("#dlg-ok").focus();
   }
@@ -942,11 +1352,22 @@
   /* ---------- keyboard ---------- */
   document.addEventListener("keydown", (e) => {
     const ctrl = e.ctrlKey || e.metaKey, k = e.key;
-    if (!$("#pal-scrim").hidden || !$("#dlg-scrim").hidden) {
-      if (k === "Escape") { e.preventDefault(); closeScrim(!$("#pal-scrim").hidden ? "#pal-scrim" : "#dlg-scrim"); }
-      if (k === "Enter" && !$("#dlg-scrim").hidden && e.target.matches("input")) { e.preventDefault(); $("#dlg-ok").click(); }
+    const overlay = ["#dlg-scrim", "#pal-scrim", "#set-scrim"].find((s) => !$(s).hidden);
+    if (overlay) {
+      if (k === "Escape") { e.preventDefault(); closeScrim(overlay); }
+      if (k === "Enter" && overlay === "#dlg-scrim" && e.target.matches("input:not([type=checkbox])")) { e.preventDefault(); $("#dlg-ok").click(); }
       return;
     }
+    if (!$("#fmenu").hidden) {
+      if (k === "Escape") { e.preventDefault(); $("#fmenu").hidden = true; focusList(S.pane); }
+      if (k === "ArrowDown" || k === "ArrowUp") {
+        e.preventDefault();
+        const bs = [...$("#fmenu").querySelectorAll("button:not([disabled])")], at = bs.indexOf(document.activeElement);
+        bs[(at + (k === "ArrowDown" ? 1 : bs.length - 1)) % bs.length].focus();
+      }
+      return;
+    }
+    if (ctrl && k === ",") { e.preventDefault(); return openSettings(); }
     if (!$("#menu").hidden) {
       if (k === "Escape") $("#menu").hidden = true;
       if (k === "ArrowDown" || k === "ArrowUp") {
@@ -1000,7 +1421,7 @@
       case ctrl && k === "x": e.preventDefault(); act("cut"); break;
       case ctrl && k === "v": e.preventDefault(); act("paste"); break;
       case k === "Tab" && S.layout === "dual": e.preventDefault(); S.pane = S.pane ? 0 : 1; markFocus(); focusList(S.pane); renderChrome(); break;
-      case k === "Escape": p.sel.clear(); refreshSelection(S.pane); break;
+      case k === "Escape": if (PICK && !p.sel.size) { pickCancel(); break; } p.sel.clear(); refreshSelection(S.pane); break;
       case k.length === 1 && !ctrl && !e.altKey: {
         const now = Date.now();
         p._typed = now - (p._typedAt || 0) < 700 ? (p._typed || "") + k.toLowerCase() : k.toLowerCase();
@@ -1043,7 +1464,7 @@
   const W = FSX.window;
   $("#w-min").onclick = () => W && W.minimize();
   $("#w-max").onclick = () => W && W.toggleMaximize();
-  $("#w-close").onclick = () => W && W.close();
+  $("#w-close").onclick = () => (PICK ? pickCancel() : W && W.close());
   $(".tabrow").addEventListener("dblclick", (e) => { if (W && (e.target.matches(".drag") || e.target === $(".tabrow"))) W.toggleMaximize(); });
   if (W && FSX.platform !== "windows") {
     // undecorated windows on Linux need their own resize edges
@@ -1060,6 +1481,8 @@
   $("#back").onclick = back; $("#fwd").onclick = fwd; $("#up").onclick = up;
   $("#newtab").onclick = () => addTab(pane().path);
   $("#search").onclick = openPalette;
+  $("#gear").onclick = openSettings;
+  $("#set-close").onclick = () => closeScrim("#set-scrim");
   document.querySelectorAll(".seg button").forEach((b) => (b.onclick = () => setLayout(b.dataset.layout)));
   document.addEventListener("mouseup", (e) => { if (e.button === 3) back(); if (e.button === 4) fwd(); });
   document.addEventListener("keydown", () => document.body.classList.add("kbd"), true);
@@ -1071,9 +1494,10 @@
 
   /* ---------- start ---------- */
   // opened on a folder (Explorer's "Open in Slate", a file manager handler, Win+E)
-  const startAt = await FSX.startupPath().catch(() => null);
+  const startAt = PICK ? null : await FSX.startupPath().catch(() => null);
   if (startAt) { S.tabs.push(newTab(startAt, HOME)); S.tab = S.tabs.length - 1; }
-  FSX.onOpenPath((path) => addTab(path || HOME));
+  if (!PICK) FSX.onOpenPath((path) => addTab(path || HOME));
+  if (PICK) setupPicker();
   applyLayout();
   await Promise.all([0, 1].map((i) => load(pane(i).path).catch(() => { pane(i).path = HOME; return load(HOME); })));
   if (!FSX.real) {
@@ -1083,7 +1507,8 @@
   visiblePanes().forEach((i) => renderPane(i, true));
   if (S.layout !== "dual") renderPane(1);
   renderChrome();
-  focusList(0);
+  if (PICK && REQ.mode === "save") { const inp = $("#pk-input"); inp.focus(); const d = inp.value.lastIndexOf("."); inp.setSelectionRange(0, d > 0 ? d : inp.value.length); }
+  else focusList(0);
   // update on launch (quietly: only says something if there is an update)
-  if (await FSX.autoUpdate().catch(() => false)) FSX.checkUpdates(true);
+  if (!PICK && await FSX.autoUpdate().catch(() => false)) FSX.checkUpdates(true);
 })();

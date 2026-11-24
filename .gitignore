@@ -7,3 +7,5 @@ src-tauri/gen/schemas/
 .impeccable/review/
 .claude/settings.local.json
 *.log
+src-tauri/resources/dialog/
+dialog/target/

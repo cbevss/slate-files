@@ -50,6 +50,10 @@
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z"/></symbol>
   <symbol id="i-newfolder" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h4.1l2 2.5h8.9A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/><path d="M12 11v6M9 14h6"/></symbol>
   <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h14m-4-4 4 4-4 4M20 16H6m4-4-4 4 4 4"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M10.3 3.6a1.8 1.8 0 0 1 3.4 0l.3.9a1.8 1.8 0 0 0 2.5 1l.8-.4a1.8 1.8 0 0 1 2.4 2.4l-.4.8a1.8 1.8 0 0 0 1 2.5l.9.3a1.8 1.8 0 0 1 0 3.4l-.9.3a1.8 1.8 0 0 0-1 2.5l.4.8a1.8 1.8 0 0 1-2.4 2.4l-.8-.4a1.8 1.8 0 0 0-2.5 1l-.3.9a1.8 1.8 0 0 1-3.4 0l-.3-.9a1.8 1.8 0 0 0-2.5-1l-.8.4a1.8 1.8 0 0 1-2.4-2.4l.4-.8a1.8 1.8 0 0 0-1-2.5l-.9-.3a1.8 1.8 0 0 1 0-3.4l.9-.3a1.8 1.8 0 0 0 1-2.5l-.4-.8a1.8 1.8 0 0 1 2.4-2.4l.8.4a1.8 1.8 0 0 0 2.5-1z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5.5h16l-6.2 7.3v5.4l-3.6 1.8v-7.2z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M10.4 4.6a1.8 1.8 0 0 1 3.2 0l7.2 12.9a1.8 1.8 0 0 1-1.6 2.7H4.8a1.8 1.8 0 0 1-1.6-2.7z"/><path d="M12 9.5v4.5M12 17h.01"/></symbol>
 </svg>
 
 <div class="app" id="app">
@@ -76,6 +80,7 @@
       <button data-layout="preview" title="With preview (Ctrl+3)" aria-label="With preview"><svg class="i"><use href="#i-l-prev"/></svg></button>
     </div>
     <button class="search" id="search" aria-label="Search everything"><svg class="i"><use href="#i-search"/></svg><span class="lbl">Search everything</span><kbd>Ctrl K</kbd></button>
+    <button class="ib gear" id="gear" title="Settings (Ctrl+,)" aria-label="Settings"><svg class="i"><use href="#i-gear"/></svg></button>
   </div>
 
   <main class="body" id="body">
@@ -107,6 +112,19 @@
     </div>
     <span class="drv" id="st-drv"></span>
   </footer>
+
+  <footer class="pickbar panel" id="pickbar" hidden>
+    <label class="pk-name"><span id="pk-label">File name</span><input id="pk-input" spellcheck="false" autocomplete="off"></label>
+    <select id="pk-type" aria-label="File type" hidden></select>
+    <div class="pk-acts"><button class="btn" id="pk-cancel">Cancel</button><button class="btn primary" id="pk-ok">Open</button></div>
+  </footer>
+</div>
+
+<div class="scrim" id="set-scrim" hidden>
+  <div class="settings" role="dialog" aria-labelledby="set-title">
+    <header><h2 id="set-title">Settings</h2><button class="ib" id="set-close" aria-label="Close settings"><svg class="i"><use href="#i-x"/></svg></button></header>
+    <div class="set-body" id="set-body"></div>
+  </div>
 </div>
 
 <div class="scrim" id="pal-scrim" hidden>
@@ -127,6 +145,7 @@
 </div>
 
 <div class="menu" id="menu" role="menu" hidden></div>
+<div class="menu fmenu" id="fmenu" role="menu" hidden></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
 <script src="data.js"></script>

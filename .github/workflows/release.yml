@@ -35,10 +35,15 @@ jobs:
           node-version: 22
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          # the experimental Open/Save dialog component also ships for 32-bit apps
+          targets: ${{ runner.os == 'Windows' && 'x86_64-pc-windows-msvc,i686-pc-windows-msvc' || '' }}
 
       - uses: swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: |
+            src-tauri -> target
+            dialog -> target
 
       - run: npm ci
 
